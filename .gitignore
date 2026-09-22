@@ -1,0 +1,18 @@
+# Binarios
+Tarea1/prim
+Tarea1/prim.exe
+Tarea1/tests_bin
+Tarea1/tests_bin.exe
+*.o
+*.out
+*.exe
+
+# Grafos guardados en disco (el enunciado pide NO entregarlos)
+*.grafo
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+__pycache__/

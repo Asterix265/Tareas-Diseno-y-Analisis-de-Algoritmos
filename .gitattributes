@@ -1,0 +1,7 @@
+# Normaliza saltos de línea (Windows / Mac / Linux)
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+Makefile text eol=lf
+*.png binary
+*.pdf binary

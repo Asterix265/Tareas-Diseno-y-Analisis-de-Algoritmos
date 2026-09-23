@@ -149,6 +149,23 @@ static void probarCola() {
     }
 }
 
+/** Provoca pérdidas de hijos desde las hojas para comprobar cortes en cascada. */
+static void probarCortesCascada() {
+    ColaFibonacci q(128);
+    for (int v = 0; v < 128; ++v) q.insert(v, static_cast<double>(v));
+    REVISAR(q.extractMin() == std::make_pair(0.0, 0), "mínimo inicial Fibonacci");
+    bool huboCascada = false;
+    for (int v = 127; v >= 1; --v) {
+        int64_t antes = q.ops;
+        q.decreaseKey(v, -static_cast<double>(128 - v));
+        if (q.ops - antes > 1) huboCascada = true;
+    }
+    REVISAR(huboCascada, "Fibonacci realiza y cuenta cortes en cascada");
+    for (int v = 1; v < 128; ++v)
+        REVISAR(q.extractMin().second == v, "decreaseKey conserva el vértice tras los cortes");
+    REVISAR(q.empty(), "Fibonacci vacía después de todos los cortes");
+}
+
 /** Prim con la cola dada contra Kruskal, en un grafo a mano y en grafos aleatorios. */
 template <class Cola>
 static void probarPrim() {
@@ -178,6 +195,7 @@ int main() {
     probarGenerador();
     probarCola<ColaBinomial>();
     probarCola<ColaFibonacci>();
+    probarCortesCascada();
     probarPrim<ColaFalsa>();
     probarPrim<ColaBinomial>();
     probarPrim<ColaFibonacci>();

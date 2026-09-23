@@ -6,8 +6,9 @@ compila igual en Linux, macOS y Windows.
 
 ## Requisitos
 
-- Un compilador C++17 (g++ ≥ 7, clang ≥ 5 o MSVC 2019+). En macOS, `g++` es clang y sirve igual.
-- Python 3 con `matplotlib` solo para los gráficos: `pip install matplotlib`.
+- Un compilador C++17 con `std::filesystem` (g++ ≥ 9, clang ≥ 7 o MSVC 2019+). En Ubuntu:
+  `sudo apt install g++ make python3 python3-matplotlib`.
+- Python 3 con `matplotlib` solo para los gráficos.
 
 ## Compilar
 
@@ -51,8 +52,8 @@ Ejemplos:
 ```
 
 Los resultados quedan en `resultados/tiempos_<series>.csv`, `curvas_<series>.csv`
-y `verificacion_<series>.csv` (peso del MST de ambas colas en cada grafo). Cada
-fila se escribe apenas termina, así que si la corrida se corta, lo medido no se pierde.
+y `verificacion_<series>.csv` (peso del MST de ambas colas en cada grafo).
+Los archivos se vacían al disco después de cada repetición.
 
 ### Correr en el servidor
 
@@ -60,7 +61,9 @@ Las series completas pueden tardar horas. Usar `tmux` para que no se corten al c
 
 ```bash
 tmux new -s prim
-g++ -std=c++17 -O2 -o prim src/main.cpp && ./prim 2>&1 | tee resultados/log.txt
+mkdir -p resultados
+g++ -std=c++17 -O2 -o prim src/main.cpp
+./prim 2>&1 | tee resultados/log.txt
 # Ctrl-b d para salir; tmux attach -t prim para volver
 ```
 
@@ -80,8 +83,22 @@ src/
   main.cpp          Batería de experimentos y salida CSV
 tests/tests.cpp     Pruebas: generador, colas vs referencia, Prim vs Kruskal
 scripts/graficos.py Gráficos con cota teórica ajustada y tabla de tiempos
-docs/ACUERDOS.md    Interfaz y decisiones del equipo
+  docs/ACUERDOS.md    Interfaz y decisiones del equipo
 ```
+
+## Recorrido del código
+
+1. `generarGrafo` crea un árbol aleatorio, agrega aristas sin repeticiones y
+   transforma la lista en CSR. El peso se obtiene de `Aleatorio::peso`.
+2. `prim<Cola>` inserta todos los vértices, extrae el mínimo y reduce la clave
+   de cada vecino que mejora su conexión con el árbol.
+3. `ColaBinomial::insert` une árboles de igual grado mediante acarreos;
+   `extractMin` promueve los hijos del mínimo; `decreaseKey` intercambia
+   contenido con el padre y actualiza `nodoDe`.
+4. `ColaFibonacci::insert` añade una raíz; `extractMin` consolida raíces
+   del mismo grado; `decreaseKey` aplica `cortar` y `corteCascada`.
+5. `main.cpp` ejecuta las cuatro series con semillas reproducibles, guarda
+   tiempos y contadores en CSV, y verifica los pesos de ambos MST.
 
 ## Reproducibilidad
 

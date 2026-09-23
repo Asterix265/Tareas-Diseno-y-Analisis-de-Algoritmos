@@ -172,15 +172,17 @@ static void probarPrim() {
     std::cout << "Prim con cola " << Cola::nombre << "\n";
     if (!Cola::implementada) { std::cout << "  (omitida: implementada = false)\n"; return; }
 
-    // Grafo a mano (7 vértices). MST: 0-1(0.1) 1-2(0.2) 2-3(0.15) 3-4(0.3) 4-5(0.25) 5-6(0.05) = 1.05
-    Grafo mano = desdeAristas(7, {{0, 1, 0.1}, {1, 2, 0.2}, {2, 3, 0.15}, {3, 4, 0.3}, {4, 5, 0.25},
-                                  {5, 6, 0.05}, {0, 2, 0.9}, {1, 3, 0.8}, {2, 4, 0.7}, {0, 6, 0.6},
-                                  {3, 6, 0.5}});
+    // Grafo a mano (10 vértices). MST: camino 0-1-...-9,
+    // pesos 0.1+0.2+0.15+0.3+0.25+0.05+0.12+0.08+0.04 = 1.29.
+    Grafo mano = desdeAristas(10, {{0, 1, 0.1}, {1, 2, 0.2}, {2, 3, 0.15}, {3, 4, 0.3},
+                                   {4, 5, 0.25}, {5, 6, 0.05}, {6, 7, 0.12}, {7, 8, 0.08},
+                                   {8, 9, 0.04}, {0, 2, 0.9}, {1, 3, 0.8}, {2, 4, 0.7},
+                                   {0, 6, 0.6}, {3, 6, 0.5}, {5, 8, 0.6}, {6, 9, 0.4}});
     ResultadoPrim r = prim<Cola>(mano);
-    REVISAR(cerca(r.pesoTotal, 1.05), "grafo a mano: peso " << r.pesoTotal << " != 1.05");
+    REVISAR(cerca(r.pesoTotal, 1.29), "grafo a mano: peso " << r.pesoTotal << " != 1.29");
     int aristas = 0;
     for (int p : r.padre) aristas += (p != -1);
-    REVISAR(aristas == 6, "MST con |V|-1 aristas");
+    REVISAR(aristas == 9, "MST con |V|-1 aristas");
 
     for (int t = 0; t < 30; ++t) {
         int v = 2 + t * 7;

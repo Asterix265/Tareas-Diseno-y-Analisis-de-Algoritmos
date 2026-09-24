@@ -11,11 +11,9 @@ compila igual en Linux, macOS y Windows.
 
 ## Estado del esqueleto
 
-El repositorio parte con toda la infraestructura funcionando y las dos colas
-como **esqueletos**: la interfaz pública está definida, pero los métodos lanzan
-`std::logic_error("... no implementado")`. Mientras una cola tenga
-`implementada = false`, los tests y `./prim` la omiten con un aviso, así que
-todo compila y corre desde el primer día.
+La infraestructura y las dos colas están implementadas. Mientras una cola tenga
+`implementada = false`, los tests y `./prim` la omiten con un aviso; hoy ambas
+tienen `implementada = true` y participan en los tests y en los experimentos.
 
 | Archivo | Estado | Responsable | Qué hace |
 |---|---|---|---|
@@ -25,8 +23,8 @@ todo compila y corre desde el primer día.
 | `src/prim.h` | ✅ Listo | Infra | `prim<Cola>(g, raiz, medirDK, cadaK)`: Prim genérico. Mide el tiempo total, cuenta las llamadas a `decreaseKey` y, en las series C/D, su tiempo acumulado y una curva. |
 | `src/main.cpp` | ✅ Listo | Infra | Corre las series A–D sin tocar código y escribe los CSV en `resultados/`. Verifica que ambas colas den el mismo peso de MST. |
 | `src/cola_falsa.h` | ✅ Listo | — | Cola trivial (arreglo + búsqueda lineal, O(n) por extracción). Solo para desarrollo y como referencia en los tests. |
-| `src/cola_binomial.h` | 🚧 Esqueleto | Colas | Interfaz + struct `NodoBinomial` sugerido. Falta `insert`, `extractMin`, `decreaseKey` y el destructor. Ver `TODO(A)` en el archivo. |
-| `src/cola_fibonacci.h` | 🚧 Esqueleto | Colas | Interfaz + struct `NodoFibonacci` sugerido. Falta `insert`, `extractMin` (consolidación), `decreaseKey` con `cut` y `cascadingCut`, y el destructor. |
+| `src/cola_binomial.h` | ✅ Listo | Colas | Raíces ordenadas por grado; `insert` con acarreos (n inserciones en O(n)); `decreaseKey` intercambia clave y vértice con el padre y actualiza `nodoDe`. |
+| `src/cola_fibonacci.h` | ✅ Listo | Colas | Anillos doblemente enlazados; `extractMin` consolida por grado; `decreaseKey` con `cortar` y `corteCascada` (cada corte suma a `ops`). |
 | `tests/tests.cpp` | ✅ Listo | Ambos | Prueba el generador; cada cola contra `ColaFalsa` con operaciones aleatorias; Prim contra Kruskal. Las colas no implementadas se omiten. |
 | `scripts/graficos.py` | ✅ Listo | Infra | Los 12 gráficos con la cota teórica ajustada por mínimos cuadrados, y la tabla de tiempos (CSV + LaTeX). |
 | `docs/ACUERDOS.md` | ✅ Listo | Ambos | Interfaz congelada, convenciones, formato de CSV, preguntas para auxiliares. |
@@ -64,8 +62,9 @@ generarGrafo(v, e, semilla) ──► Grafo (CSR) ──► prim<Cola>(...) ─�
 
 ## Requisitos
 
-- Un compilador C++17 (g++ ≥ 7, clang ≥ 5 o MSVC 2019+). En macOS, `g++` es clang y sirve igual.
-- Python 3 con `matplotlib` solo para los gráficos: `pip install matplotlib`.
+- Un compilador C++17 con `std::filesystem` (g++ ≥ 9, clang ≥ 7 o MSVC 2019+). En Ubuntu:
+  `sudo apt install g++ make python3 python3-matplotlib`.
+- Python 3 con `matplotlib` solo para los gráficos.
 
 ## Compilar
 
@@ -128,7 +127,9 @@ Las series completas pueden tardar horas. Usar `tmux` para que no se corten al c
 
 ```bash
 tmux new -s prim
-g++ -std=c++17 -O2 -o prim src/main.cpp && ./prim 2>&1 | tee resultados/log.txt
+mkdir -p resultados
+g++ -std=c++17 -O2 -o prim src/main.cpp
+./prim 2>&1 | tee resultados/log.txt
 # Ctrl-b d para salir; tmux attach -t prim para volver
 ```
 
@@ -141,8 +142,8 @@ src/
   grafo.h           Grafo en formato CSR
   aleatorio.h       Generador pseudoaleatorio portable (mt19937 sin distribuciones de std)
   generador.h       Grafos conexos aleatorios (sección 6.1)
-  cola_binomial.h   Cola binomial              (esqueleto)
-  cola_fibonacci.h  Cola de Fibonacci          (esqueleto)
+  cola_binomial.h   Cola binomial
+  cola_fibonacci.h  Cola de Fibonacci
   cola_falsa.h      Cola trivial O(n) para desarrollo y tests
   prim.h            Prim genérico + medición de tiempos y operaciones
   main.cpp          Batería de experimentos y salida CSV
@@ -153,6 +154,20 @@ docs/PLAN.md        Plan de trabajo por persona
 resultados/         CSV generados por ./prim
 figuras/            PNG y tablas generados por graficos.py
 ```
+
+## Recorrido del código
+
+1. `generarGrafo` crea un árbol aleatorio, agrega aristas sin repeticiones y
+   transforma la lista en CSR. El peso se obtiene de `Aleatorio::peso`.
+2. `prim<Cola>` inserta todos los vértices, extrae el mínimo y reduce la clave
+   de cada vecino que mejora su conexión con el árbol.
+3. `ColaBinomial::insert` une árboles de igual grado mediante acarreos;
+   `extractMin` promueve los hijos del mínimo; `decreaseKey` intercambia
+   contenido con el padre y actualiza `nodoDe`.
+4. `ColaFibonacci::insert` añade una raíz; `extractMin` consolida raíces
+   del mismo grado; `decreaseKey` aplica `cortar` y `corteCascada`.
+5. `main.cpp` ejecuta las cuatro series con semillas reproducibles, guarda
+   tiempos y contadores en CSV, y verifica los pesos de ambos MST.
 
 ## Reproducibilidad
 

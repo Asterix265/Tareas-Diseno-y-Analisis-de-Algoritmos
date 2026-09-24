@@ -149,21 +149,40 @@ static void probarCola() {
     }
 }
 
+/** Provoca pérdidas de hijos desde las hojas para comprobar cortes en cascada. */
+static void probarCortesCascada() {
+    ColaFibonacci q(128);
+    for (int v = 0; v < 128; ++v) q.insert(v, static_cast<double>(v));
+    REVISAR(q.extractMin() == std::make_pair(0.0, 0), "mínimo inicial Fibonacci");
+    bool huboCascada = false;
+    for (int v = 127; v >= 1; --v) {
+        int64_t antes = q.ops;
+        q.decreaseKey(v, -static_cast<double>(128 - v));
+        if (q.ops - antes > 1) huboCascada = true;
+    }
+    REVISAR(huboCascada, "Fibonacci realiza y cuenta cortes en cascada");
+    for (int v = 1; v < 128; ++v)
+        REVISAR(q.extractMin().second == v, "decreaseKey conserva el vértice tras los cortes");
+    REVISAR(q.empty(), "Fibonacci vacía después de todos los cortes");
+}
+
 /** Prim con la cola dada contra Kruskal, en un grafo a mano y en grafos aleatorios. */
 template <class Cola>
 static void probarPrim() {
     std::cout << "Prim con cola " << Cola::nombre << "\n";
     if (!Cola::implementada) { std::cout << "  (omitida: implementada = false)\n"; return; }
 
-    // Grafo a mano (7 vértices). MST: 0-1(0.1) 1-2(0.2) 2-3(0.15) 3-4(0.3) 4-5(0.25) 5-6(0.05) = 1.05
-    Grafo mano = desdeAristas(7, {{0, 1, 0.1}, {1, 2, 0.2}, {2, 3, 0.15}, {3, 4, 0.3}, {4, 5, 0.25},
-                                  {5, 6, 0.05}, {0, 2, 0.9}, {1, 3, 0.8}, {2, 4, 0.7}, {0, 6, 0.6},
-                                  {3, 6, 0.5}});
+    // Grafo a mano (10 vértices). MST: camino 0-1-...-9,
+    // pesos 0.1+0.2+0.15+0.3+0.25+0.05+0.12+0.08+0.04 = 1.29.
+    Grafo mano = desdeAristas(10, {{0, 1, 0.1}, {1, 2, 0.2}, {2, 3, 0.15}, {3, 4, 0.3},
+                                   {4, 5, 0.25}, {5, 6, 0.05}, {6, 7, 0.12}, {7, 8, 0.08},
+                                   {8, 9, 0.04}, {0, 2, 0.9}, {1, 3, 0.8}, {2, 4, 0.7},
+                                   {0, 6, 0.6}, {3, 6, 0.5}, {5, 8, 0.6}, {6, 9, 0.4}});
     ResultadoPrim r = prim<Cola>(mano);
-    REVISAR(cerca(r.pesoTotal, 1.05), "grafo a mano: peso " << r.pesoTotal << " != 1.05");
+    REVISAR(cerca(r.pesoTotal, 1.29), "grafo a mano: peso " << r.pesoTotal << " != 1.29");
     int aristas = 0;
     for (int p : r.padre) aristas += (p != -1);
-    REVISAR(aristas == 6, "MST con |V|-1 aristas");
+    REVISAR(aristas == 9, "MST con |V|-1 aristas");
 
     for (int t = 0; t < 30; ++t) {
         int v = 2 + t * 7;
@@ -178,6 +197,7 @@ int main() {
     probarGenerador();
     probarCola<ColaBinomial>();
     probarCola<ColaFibonacci>();
+    probarCortesCascada();
     probarPrim<ColaFalsa>();
     probarPrim<ColaBinomial>();
     probarPrim<ColaFibonacci>();

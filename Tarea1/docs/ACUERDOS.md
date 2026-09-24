@@ -35,8 +35,12 @@ static size_t bytesPorNodo();             // para la estimación de memoria
   - Binomial: +1 por cada intercambio del `while` (sección 3.2).
   - Fibonacci: +1 por cada `cut`, incluido el primero (no solo los de la cascada).
 - Lo privado (structs de nodo, helpers) lo decide A libremente.
-- Decisión pendiente de A: en la binomial, ¿intercambiar contenido y actualizar
-  `nodoDe`, o reconectar punteros? Documentarla en el informe.
+- Decisión implementada: en la binomial se intercambian clave y vértice, y en
+  el mismo paso se actualizan ambas entradas de `nodoDe`. Así se conserva la
+  forma del árbol y el acceso directo a cada vértice sigue siendo correcto.
+  La inserción usa acarreos entre raíces de grado igual: `n` inserciones cuestan
+  `O(n)` en total. En Fibonacci, cada corte (incluido el inicial) incrementa
+  `ops`; una raíz nunca queda marcada.
 
 ## Grafo
 

@@ -98,6 +98,7 @@ python3 scripts/graficos.py  # 12 gráficos + tabla en figuras/
 | `--semilla S` | Semilla base | `20260928` |
 | `--cada K` | Guarda un punto de la curva cada K llamadas a decreaseKey | automático |
 | `--memoria` | Solo imprime la estimación de memoria (sección 6.2) | — |
+| `--calibrar` | Solo mide el costo promedio de `steady_clock::now()` con 10^6 llamadas seguidas | — |
 
 Ejemplos:
 
@@ -107,7 +108,15 @@ Ejemplos:
 ./prim --series AB                        # solo costo total
 ./prim --series CD                        # solo costo amortizado
 ./prim --memoria
+./prim --calibrar
 ```
+
+`--calibrar` sirve para el análisis del costo amortizado: en las series C y D cada
+`decreaseKey` se mide entre dos llamadas a `steady_clock::now()`, así que cada
+medición incluye aproximadamente el costo de una llamada al reloj. Con ese valor
+se puede estimar cuánto del tiempo acumulado (`dk_tiempo_ns`) corresponde al reloj
+(≈ `dk_llamadas × costo por llamada`). Conviene correrlo en el servidor, junto con
+los datos del equipo, antes de la batería completa.
 
 ### Archivos de salida
 

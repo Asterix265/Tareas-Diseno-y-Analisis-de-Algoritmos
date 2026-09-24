@@ -7,6 +7,7 @@
  *   ./prim --reducir 4             # i-=4, j-=4: prueba rápida en un notebook
  *   ./prim --colas falsa --reducir 10
  *   ./prim --memoria               # solo imprime la estimación de memoria (6.2)
+ *   ./prim --calibrar              # solo mide el costo de steady_clock::now() (10^6 llamadas)
  *
  * Salida (carpeta --salida, por defecto resultados/), un archivo por invocación:
  *   tiempos_<series>.csv       una fila por (configuración, repetición, cola)
@@ -98,6 +99,26 @@ static void imprimirMemoria(int64_t v, int64_t e) {
               << "  Temporal del generador (se libera):     " << mb(gen) << "\n";
 }
 
+/**
+ * Mide el costo promedio de una llamada a steady_clock::now() (sirve para
+ * descontar el costo del reloj en la medición de decreaseKey, series C y D).
+ * Entrada: cantidad de llamadas. Salida: imprime el promedio en ns y la resolución.
+ */
+static void calibrarReloj(int64_t llamadas) {
+    using Reloj = std::chrono::steady_clock;
+    int64_t suma = 0;  // se usa el resultado para que el compilador no elimine las llamadas
+    const auto t0 = Reloj::now();
+    for (int64_t k = 0; k < llamadas; ++k) suma += Reloj::now().time_since_epoch().count();
+    const auto t1 = Reloj::now();
+    static volatile int64_t sumidero;
+    sumidero = suma;
+    const double totalNs = std::chrono::duration<double, std::nano>(t1 - t0).count();
+    std::cout << "Calibracion de steady_clock::now() (" << llamadas << " llamadas)\n"
+              << "  Tiempo total:       " << std::fixed << std::setprecision(3) << totalNs / 1e6 << " ms\n"
+              << "  Costo por llamada:  " << std::setprecision(2) << totalNs / static_cast<double>(llamadas) << " ns\n"
+              << "  Resolucion nominal: " << 1e9 * Reloj::period::num / Reloj::period::den << " ns\n";
+}
+
 int main(int argc, char** argv) {
     std::string series = "ABCD";
     std::string colasArg = "binomial,fibonacci";
@@ -105,7 +126,7 @@ int main(int argc, char** argv) {
     int reps = 10, reducir = 0;
     int64_t cadaK = 0;  // 0 = automático: ~4096 puntos por curva
     uint32_t base = 20260928;
-    bool soloMemoria = false;
+    bool soloMemoria = false, soloCalibrar = false;
 
     for (int a = 1; a < argc; ++a) {
         std::string s = argv[a];
@@ -121,9 +142,11 @@ int main(int argc, char** argv) {
         else if (s == "--cada") cadaK = std::stoll(sig());
         else if (s == "--semilla") base = static_cast<uint32_t>(std::stoul(sig()));
         else if (s == "--memoria") soloMemoria = true;
+        else if (s == "--calibrar") soloCalibrar = true;
         else {
             std::cerr << "Uso: prim [--series ABCD] [--reps N] [--colas binomial,fibonacci,falsa]\n"
-                         "            [--salida dir] [--reducir k] [--cada K (0=auto)] [--semilla S] [--memoria]\n";
+                         "            [--salida dir] [--reducir k] [--cada K (0=auto)] [--semilla S]\n"
+                         "            [--memoria] [--calibrar]\n";
             return s == "--ayuda" || s == "-h" ? 0 : 1;
         }
     }
@@ -132,6 +155,10 @@ int main(int argc, char** argv) {
         std::cout << "Estimacion de memoria (seccion 6.2)\n";
         imprimirMemoria(int64_t(1) << 15, int64_t(1) << 20);
         imprimirMemoria(int64_t(1) << 22, int64_t(1) << 24);  // caso más grande de la serie B
+        return 0;
+    }
+    if (soloCalibrar) {
+        calibrarReloj(1000000);
         return 0;
     }
 

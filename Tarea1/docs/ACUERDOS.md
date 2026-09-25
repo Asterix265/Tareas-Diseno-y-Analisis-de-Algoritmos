@@ -57,8 +57,13 @@ static size_t bytesPorNodo();             // para la estimación de memoria
 - Reloj: `std::chrono::steady_clock` siempre.
 - Tiempo total = solo Prim (incluye construir Q; excluye generar el grafo y destruir Q).
 - Series A y B: sin medir decreaseKey individualmente (el reloj cuesta ~20–50 ns).
-- Series C y D: se mide cada decreaseKey y se acumula; además se guarda una curva
-  (~4096 puntos) de la repetición 0.
+- Series C y D: se mide cada decreaseKey y se acumula. Además, `prim.h` guarda el
+  tiempo y las operaciones acumuladas de **cada** llamada (fuera del intervalo medido)
+  y `main.cpp` escribe la curva de la repetición 0 reducida a ~4096 puntos espaciados
+  según la cantidad real de llamadas (`--cada K` guarda un punto cada K llamadas).
+- **`tiempo_ms` en C y D incluye el costo del reloj** (dos `now()` por decreaseKey
+  más guardar la curva). No se compara con A y B; en C y D solo se usan
+  `dk_tiempo_ns` y `dk_ops`. El costo del reloj se mide con `./prim --calibrar`.
 - Se alterna el orden de las colas entre repeticiones.
 - Experimentos finales: **solo en el servidor Ubuntu**, `-O2`, sin otras cargas.
 

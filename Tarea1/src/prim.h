@@ -38,7 +38,11 @@ struct ResultadoPrim {
  *   raiz     vértice inicial.
  *   medirDK  si es true, mide el tiempo de cada decreaseKey (series C y D).
  *            En las series A y B va en false para no sumar el costo del reloj.
- *   cadaK    si > 0 y medirDK, guarda un PuntoCurva cada cadaK llamadas.
+ *   cadaK    si > 0 y medirDK, guarda un PuntoCurva cada cadaK llamadas
+ *            (cadaK = 1: un punto por llamada; main.cpp lo reduce después).
+ *            El push_back ocurre fuera del intervalo medido de decreaseKey, y
+ *            se reserva g.m / cadaK + 1 puntos: cada arista provoca a lo sumo
+ *            un decreaseKey, así que el vector nunca se realoca durante Prim.
  * Salida: ResultadoPrim. La generación del grafo NO entra en la medición.
  */
 template <class Cola>
@@ -77,6 +81,7 @@ ResultadoPrim prim(const Grafo& g, int raiz = 0, bool medirDK = false, int64_t c
                         const auto a = Reloj::now();
                         Q.decreaseKey(u, w);
                         const auto b = Reloj::now();
+                        // Desde aquí ya no se mide: acumular y guardar la curva no suma a dkTiempoNs.
                         r.dkTiempoNs += std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count();
                         ++r.dkLlamadas;
                         if (cadaK > 0 && r.dkLlamadas % cadaK == 0)

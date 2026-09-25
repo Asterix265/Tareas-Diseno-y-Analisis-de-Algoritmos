@@ -96,7 +96,7 @@ python3 scripts/graficos.py  # 12 gráficos + tabla en figuras/
 | `--reducir k` | Resta k a i y j (prueba rápida con grafos 2^k veces más chicos) | `0` |
 | `--salida dir` | Carpeta de los CSV | `resultados` |
 | `--semilla S` | Semilla base | `20260928` |
-| `--cada K` | Guarda un punto de la curva cada K llamadas a decreaseKey | automático |
+| `--cada K` | Guarda un punto de la curva cada K llamadas a decreaseKey | automático: se guarda cada llamada y se reduce a ~4096 puntos |
 | `--memoria` | Solo imprime la estimación de memoria (sección 6.2) | — |
 | `--calibrar` | Solo mide el costo promedio de `steady_clock::now()` con 10^6 llamadas seguidas | — |
 
@@ -123,8 +123,13 @@ los datos del equipo, antes de la batería completa.
 | Archivo | Contenido |
 |---|---|
 | `resultados/tiempos_<series>.csv` | Una fila por (configuración, repetición, cola): tiempo total, peso del MST, llamadas, tiempo y operaciones de `decreaseKey`. |
-| `resultados/curvas_<series>.csv` | Curva acumulada de `decreaseKey` (series C y D, repetición 0). |
+| `resultados/curvas_<series>.csv` | Curva acumulada de `decreaseKey` (series C y D, repetición 0), ~4096 puntos espaciados según la cantidad real de llamadas. |
 | `resultados/verificacion_<series>.csv` | Peso del MST de ambas colas sobre el mismo grafo y si coinciden. |
+
+> **Ojo con `tiempo_ms` en las series C y D:** ahí cada `decreaseKey` se mide con dos
+> llamadas a `steady_clock::now()` y además se guarda la curva, así que el tiempo total
+> incluye el costo del reloj. **No se compara con A y B.** Para el costo total se usan
+> A y B; para el costo amortizado, `dk_tiempo_ns` y `dk_ops` de C y D.
 
 Cada fila se escribe apenas termina, así que si la corrida se corta, lo medido no
 se pierde. Las corridas con `--reducir` llevan el sufijo `_red<k>` y `graficos.py`

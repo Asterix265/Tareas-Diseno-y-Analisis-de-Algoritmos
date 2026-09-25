@@ -16,3 +16,6 @@ Tarea1/tests_bin.exe
 .DS_Store
 Thumbs.db
 __pycache__/
+
+# Corridas de prueba con --reducir (no se suben)
+Tarea1/resultados/*_red*.csv

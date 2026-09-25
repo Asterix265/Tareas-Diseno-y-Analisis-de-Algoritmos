@@ -69,6 +69,23 @@ static ResultadoPrim ejecutar(const std::string& cola, const Grafo& g, bool medi
     throw std::invalid_argument("cola desconocida: " + cola);
 }
 
+/** Cantidad de puntos por curva cuando --cada es automático. */
+static constexpr size_t PUNTOS_CURVA = 4096;
+
+/**
+ * Reduce una curva con un punto por llamada a `puntos` puntos espaciados
+ * uniformemente según la cantidad real de llamadas (el último siempre se incluye).
+ * Entrada: curva completa y cantidad deseada. Salida: curva reducida.
+ */
+static std::vector<PuntoCurva> reducirCurva(const std::vector<PuntoCurva>& curva, size_t puntos) {
+    const size_t n = curva.size();
+    if (n <= puntos) return curva;
+    std::vector<PuntoCurva> r;
+    r.reserve(puntos);
+    for (size_t t = 1; t <= puntos; ++t) r.push_back(curva[t * n / puntos - 1]);
+    return r;
+}
+
 static bool implementada(const std::string& cola) {
     if (cola == "binomial") return ColaBinomial::implementada;
     if (cola == "fibonacci") return ColaFibonacci::implementada;
@@ -88,6 +105,12 @@ static void imprimirMemoria(int64_t v, int64_t e) {
     const double aux = static_cast<double>(v) * (sizeof(double) + sizeof(int) + sizeof(char));  // costo, padre, enQ
     const double ptrs = static_cast<double>(v) * sizeof(void*);                                 // nodoDe
     const double gen = static_cast<double>(e) * sizeof(uint64_t);  // temporal del generador
+    const double cursor = static_cast<double>(v) * sizeof(int64_t);  // cursor del paso CSR
+    // Pico en la generación: CSR completo + claves + cursor viven a la vez (paso 3).
+    const double picoGen = grafo + gen + cursor;
+    // Pico en Prim: CSR + nodos de la cola + nodoDe + costo/padre/enQ.
+    const double picoPrimBin = grafo + aux + ptrs + static_cast<double>(v) * ColaBinomial::bytesPorNodo();
+    const double picoPrimFib = grafo + aux + ptrs + static_cast<double>(v) * ColaFibonacci::bytesPorNodo();
     std::cout << "v = " << v << ", e = " << e << "\n"
               << "  Lista de adyacencia (CSR, 2e entradas): " << mb(grafo) << "\n"
               << "  Arreglos costo/padre/enQ:               " << mb(aux) << "\n"
@@ -96,7 +119,10 @@ static void imprimirMemoria(int64_t v, int64_t e) {
               << mb(static_cast<double>(v) * ColaBinomial::bytesPorNodo()) << "\n"
               << "  Nodos cola Fibonacci (" << ColaFibonacci::bytesPorNodo() << " B/nodo):  "
               << mb(static_cast<double>(v) * ColaFibonacci::bytesPorNodo()) << "\n"
-              << "  Temporal del generador (se libera):     " << mb(gen) << "\n";
+              << "  Temporal del generador (se libera):     " << mb(gen) << "\n"
+              << "  Pico generacion (CSR + claves + cursor): " << mb(picoGen) << "\n"
+              << "  Pico Prim binomial  (CSR + cola + aux):  " << mb(picoPrimBin) << "\n"
+              << "  Pico Prim Fibonacci (CSR + cola + aux):  " << mb(picoPrimFib) << "\n";
 }
 
 /**
@@ -124,7 +150,7 @@ int main(int argc, char** argv) {
     std::string colasArg = "binomial,fibonacci";
     std::string salida = "resultados";
     int reps = 10, reducir = 0;
-    int64_t cadaK = 0;  // 0 = automático: ~4096 puntos por curva
+    int64_t cadaK = 0;  // 0 = automático: se guarda cada llamada y se reduce a PUNTOS_CURVA
     uint32_t base = 20260928;
     bool soloMemoria = false, soloCalibrar = false;
 
@@ -201,7 +227,9 @@ int main(int argc, char** argv) {
                       << " no es posible (e > v(v-1)/2); se omite. Use un --reducir menor.\n";
             continue;
         }
-        const int64_t k = cadaK > 0 ? cadaK : std::max<int64_t>(1, e >> 12);
+        // Con --cada K se guarda un punto cada K llamadas y se escribe tal cual;
+        // en automático se guarda cada llamada y se reduce al escribir.
+        const int64_t k = cadaK > 0 ? cadaK : 1;
 
         for (int rep = 0; rep < reps; ++rep) {
             const uint32_t sem = semilla(base, c0, rep);
@@ -218,7 +246,7 @@ int main(int argc, char** argv) {
                    << sem << ',' << cola << ',' << r.tiempoMs << ',' << r.pesoTotal << ','
                    << r.dkLlamadas << ',' << r.dkTiempoNs << ',' << r.dkOps << '\n';
                 if (amortizado && rep == 0)
-                    for (const PuntoCurva& p : r.curva)
+                    for (const PuntoCurva& p : cadaK > 0 ? r.curva : reducirCurva(r.curva, PUNTOS_CURVA))
                         fC << c.serie << ',' << c.i << ',' << c.j << ',' << rep << ',' << cola << ','
                            << p.llamadas << ',' << p.tiempoNs << ',' << p.ops << '\n';
 

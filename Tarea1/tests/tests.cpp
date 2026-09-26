@@ -155,7 +155,8 @@ static void probarGenerador() {
 }
 
 /**
- * Secuencia aleatoria de operaciones comparada contra ColaFalsa.
+ * Secuencia aleatoria de operaciones comparada contra ColaFalsa; también
+ * revisa contiene() de ambas colas después de cada extracción.
  * Entrada: tipo Cola (plantilla). Salida: registra las pruebas con REVISAR.
  */
 template <class Cola>
@@ -167,13 +168,15 @@ static void probarCola() {
         Cola q(n);
         ColaFalsa ref(n);
         std::vector<double> clave(n);
-        std::vector<char> dentro(n, 1);
+        std::vector<char> dentro(n, 1), dentroRef(n, 1);
         for (int v = 0; v < n; ++v) {
             clave[v] = rng.peso();
             q.insert(v, clave[v]);
             ref.insert(v, clave[v]);
         }
-        bool ok = true;
+        bool ok = true, contieneOk = true;
+        for (int v = 0; v < n; ++v)
+            if (!q.contiene(v) || !ref.contiene(v)) contieneOk = false;
         int quedan = n;
         while (quedan > 0 && ok) {
             for (int t = 0; t < 3; ++t) {  // algunos decreaseKey entre extracciones
@@ -187,9 +190,13 @@ static void probarCola() {
             auto b = ref.extractMin();
             if (a.first != b.first) ok = false;  // el vértice puede diferir si hay empates
             dentro[a.second] = 0;
+            dentroRef[b.second] = 0;
             --quedan;
+            for (int v = 0; v < n; ++v)
+                if (q.contiene(v) != (dentro[v] != 0) || ref.contiene(v) != (dentroRef[v] != 0)) contieneOk = false;
         }
         REVISAR(ok && q.empty(), "extractMin coincide con la referencia, n=" << n);
+        REVISAR(contieneOk, "contiene() coincide con los vertices presentes, n=" << n);
     }
 }
 

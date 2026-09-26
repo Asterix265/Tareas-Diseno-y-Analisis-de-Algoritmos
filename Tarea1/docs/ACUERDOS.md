@@ -25,15 +25,15 @@ void insert(int v, double key);
 std::pair<double,int> extractMin();       // (costo, vértice)
 void decreaseKey(int v, double key);      // key <= costo actual
 bool empty() const;
+bool contiene(int v) const;               // true si v todavía está en la cola (línea 9 de Prim)
 static size_t bytesPorNodo();             // para la estimación de memoria
 ~Cola();                                  // libera todos los nodos
 ```
 
 - El arreglo vértice → nodo (`nodoDe`) vive **dentro** de la cola.
-- Prim decide `u ∈ Q` (línea 9) con su propio arreglo auxiliar `vector<char> enQ`:
-  se crea dentro del tiempo medido, junto a las líneas 1-3, y `enQ[v] = 0` después de
-  `extractMin`. No está en el pseudocódigo y es **extra** respecto a los arreglos que
-  lista la sección 6.2 (costos, parent y `nodoDe`); hay que declararlo en el informe.
+- Prim decide `u ∈ Q` con `Q.contiene(u)` (`nodoDe[u] != nullptr` en binomial y
+  Fibonacci, `presente[u]` en la falsa). No hay arreglo `enQ` en Prim: los arreglos
+  auxiliares son exactamente los de la sección 6.2 (costos, parent y `nodoDe`).
 - **Construcción de Q**: `construir(Q, costos)` en `prim.h`, n llamadas a `insert`
   (costos[r] = 0, resto = ∞), como pide la sección 3.4 del enunciado.
 - **Conteo de operaciones**, solo dentro de `decreaseKey`:
@@ -42,9 +42,11 @@ static size_t bytesPorNodo();             // para la estimación de memoria
     el `cut` que hace `cascadingCut` (lectura literal de 6.3.2 b: "cortes en cascada").
   - Los gráficos de operaciones usan `ops` en la binomial y `opsCascada` en Fibonacci;
     la tabla de C y D muestra ambos contadores.
-- **Comparación**: las colas comparan con el orden total (clave, vértice) (`menor`),
-  también en decreaseKey: con claves iguales desempata el vértice menor. Difiere del
-  pseudocódigo, que usa `x.key < y.key` estricto; hay que declararlo en el informe.
+- **Comparación en decreaseKey**: solo claves y en forma estricta
+  (`x->clave < padre->clave`, línea 3 de ambos pseudocódigos). Con claves iguales no
+  hay intercambio (binomial) ni corte (Fibonacci). El desempate por vértice (`menor`)
+  se usa solo para elegir el mínimo (y al enlazar árboles), no en decreaseKey. Por
+  eso, en Fibonacci el mínimo se actualiza en decreaseKey solo si el nodo es raíz.
 - Lo privado (structs de nodo, helpers) lo decide A libremente.
 - Decisión implementada: en la binomial se intercambian clave y vértice, y en
   el mismo paso se actualizan ambas entradas de `nodoDe`. Así se conserva la
@@ -67,7 +69,7 @@ static size_t bytesPorNodo();             // para la estimación de memoria
 
 - Reloj: `std::chrono::steady_clock` siempre.
 - Tiempo total = líneas 1 a 14 de Prim: `t0` se toma **antes de la línea 1**, así que
-  incluye inicializar costos/parent/enQ, construir Q y T. Excluye generar el grafo y destruir Q.
+  incluye inicializar costos/parent, construir Q y T. Excluye generar el grafo y destruir Q.
 - `prim.h` es una traducción literal de Prim(G, r): cada bloque lleva su número de línea;
   `parent[v] = INDEFINIDO` (−2) es distinto del −1 de la raíz; T es un
   `vector<pair<int,int>>` que se retorna dentro de `ResultadoPrim`.

@@ -131,19 +131,17 @@ static void imprimirMemoria(int64_t v, int64_t e) {
     const double aux = static_cast<double>(v) * (sizeof(double) + sizeof(int));  // costos, parent
     const double ptrs = static_cast<double>(v) * sizeof(void*);                  // nodoDe
     const double arbol = static_cast<double>(v - 1) * sizeof(std::pair<int, int>);  // T (línea 5)
-    const double enq = static_cast<double>(v) * sizeof(char);  // enQ (línea 9), extra respecto a 6.2
     const double gen = static_cast<double>(e) * sizeof(uint64_t);  // temporal del generador
     const double cursor = static_cast<double>(v) * sizeof(int64_t);  // cursor del paso CSR
     // Pico en la generación: CSR completo + claves + cursor viven a la vez (paso 3).
     const double picoGen = grafo + gen + cursor;
-    // Pico en Prim: CSR + nodos de la cola + nodoDe + costos/parent + T + enQ.
-    const double picoPrimBin = grafo + aux + ptrs + arbol + enq + static_cast<double>(v) * ColaBinomial::bytesPorNodo();
-    const double picoPrimFib = grafo + aux + ptrs + arbol + enq + static_cast<double>(v) * ColaFibonacci::bytesPorNodo();
+    // Pico en Prim: CSR + nodos de la cola + nodoDe + costos/parent + T.
+    const double picoPrimBin = grafo + aux + ptrs + arbol + static_cast<double>(v) * ColaBinomial::bytesPorNodo();
+    const double picoPrimFib = grafo + aux + ptrs + arbol + static_cast<double>(v) * ColaFibonacci::bytesPorNodo();
     std::cout << "v = " << v << ", e = " << e << "\n"
               << "  Lista de adyacencia (CSR, 2e entradas): " << mb(grafo) << "\n"
               << "  Arreglos costos/parent:                 " << mb(aux) << "\n"
               << "  Arreglo de punteros a nodos de Q:       " << mb(ptrs) << "\n"
-              << "  Arreglo enQ (extra, 1 B/vertice):       " << mb(enq) << "\n"
               << "  Aristas del MST (T, v-1 pares):         " << mb(arbol) << "\n"
               << "  Nodos cola binomial  (" << ColaBinomial::bytesPorNodo() << " B/nodo):  "
               << mb(static_cast<double>(v) * ColaBinomial::bytesPorNodo()) << "\n"
@@ -151,8 +149,8 @@ static void imprimirMemoria(int64_t v, int64_t e) {
               << mb(static_cast<double>(v) * ColaFibonacci::bytesPorNodo()) << "\n"
               << "  Temporal del generador (se libera):     " << mb(gen) << "\n"
               << "  Pico generacion (CSR + claves + cursor): " << mb(picoGen) << "\n"
-              << "  Pico Prim binomial  (CSR + cola + aux + T + enQ):  " << mb(picoPrimBin) << "\n"
-              << "  Pico Prim Fibonacci (CSR + cola + aux + T + enQ):  " << mb(picoPrimFib) << "\n";
+              << "  Pico Prim binomial  (CSR + cola + aux + T):  " << mb(picoPrimBin) << "\n"
+              << "  Pico Prim Fibonacci (CSR + cola + aux + T):  " << mb(picoPrimFib) << "\n";
 }
 
 /**

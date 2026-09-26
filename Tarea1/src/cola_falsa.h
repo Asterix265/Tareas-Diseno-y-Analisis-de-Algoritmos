@@ -52,6 +52,9 @@ public:
     /** Salida: true si la cola no tiene elementos. */
     bool empty() const { return tam == 0; }
 
+    /** Entrada: vértice v en 0..n-1. Salida: true si v todavía está en la cola. */
+    bool contiene(int v) const { return presente[v] != 0; }
+
     /** Bytes por elemento almacenado (para la estimación de memoria). */
     static size_t bytesPorNodo() { return sizeof(double) + sizeof(char); }
 

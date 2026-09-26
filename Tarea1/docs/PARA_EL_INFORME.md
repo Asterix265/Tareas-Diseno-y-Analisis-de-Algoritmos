@@ -55,11 +55,10 @@ La rúbrica pide explícitamente tres cosas; van primero.
 
 ### 2.1 Lo que la rúbrica pide explícitamente
 
-- [ ] **[ENUNCIADO] Acceso directo a los nodos de Q.** Cada cola guarda dentro un arreglo
-      `nodoDe[v]` (puntero al nodo del vértice v). Prim decide "u ∈ Q" (línea 9 del pseudocódigo)
-      con su propio arreglo auxiliar `enQ` (`enQ[v] = 0` al extraer v). **[DECISIÓN]** `enQ` es
-      **extra** respecto a los arreglos que lista 6.2 (costos, parent y punteros a los nodos de Q):
-      hay que declararlo.
+- [ ] **[ENUNCIADO] Acceso directo a los nodos de Q.** Cada cola guarda un arreglo `nodoDe[v]`
+      (puntero al nodo del vértice v). `extractMin` lo deja en `nullptr`, y Prim decide
+      "u ∈ Q" (línea 9 del pseudocódigo) con `Q.contiene(u)`, que lee ese mismo arreglo. Por eso no
+      hay arreglos extra fuera de los que lista 6.2.
 - [ ] **[ENUNCIADO] `decreaseKey` en cada estructura.**
   - Binomial (§3.2): **intercambio de contenido** (clave y vértice) con el padre, actualizando
     `nodoDe` de los dos nodos en cada intercambio. **[ENUNCIADO, p. 2]** *"deben justificar cuál
@@ -68,9 +67,12 @@ La rúbrica pide explícitamente tres cosas; van primero.
     literal de la línea 4 del pseudocódigo.
   - Fibonacci (§3.3): `cut` + `cascadingCut` tal cual el pseudocódigo. Al pasar a raíz, el nodo
     queda sin padre y sin marca (línea 3 de `cut`).
-  - **[DECISIÓN]** Las colas comparan con el orden total (clave, vértice); con claves iguales
-    desempata el vértice menor. Difiere del pseudocódigo, que usa `x.key < y.key` estricto:
-    declararlo.
+  - **[DECISIÓN]** Ambas usan la comparación **estricta** `x.key < y.key` del pseudocódigo. Con
+    claves iguales no se intercambia ni se corta.
+  - **[DECISIÓN]** En Fibonacci, "actualizar el mínimo si corresponde" (línea 6) solo se hace si el
+    nodo quedó como **raíz**. Con claves iguales, un nodo que no se cortó puede empatar con el
+    mínimo; si se lo tomara como mínimo, el mínimo apuntaría a un nodo que no es raíz (lo
+    reprodujimos: el programa se cae). La binomial ya lo hacía así.
 - [ ] **[ENUNCIADO] Construcción de la cola inicial.** `construir(Q, costos)` hace v inserciones
       sucesivas (línea 4). Recibe Q por referencia porque en C++ las colas no se pueden copiar ni
       mover (desviación literal menor frente a `Q ← construir(costos)`).
@@ -197,8 +199,6 @@ La rúbrica pide explícitamente tres cosas; van primero.
   - **[DECISIÓN]** Agregar el caso más grande de las series (v = 2^22, e = 2^24), el pico durante la
     generación y el arreglo T. Aclarar que `sizeof` no incluye la sobrecarga del asignador de memoria
     por cada `new`.
-  - **[DECISIÓN]** Declarar el arreglo `enQ` (1 B por vértice) como **extra** respecto a los
-    arreglos que pide 6.2; `./prim --memoria` lo muestra en una línea aparte.
   - Opcional, sin puntaje: *"¿Qué valores podrían generar problemas en su máquina?"*.
 
 ---
@@ -255,8 +255,7 @@ La rúbrica dice que **aquí** van las respuestas a las **tres preguntas** (§3.
   - Llamadas reales a `decreaseKey` ≪ e: la cota usa e, pero con pesos aleatorios solo una fracción
     de las aristas mejora un costo. Comparar `dk_llamadas` con e.
   - Intercambios reales ≪ log v: con claves aleatorias, el nodo rara vez sube hasta la raíz.
-  - Pesos repetidos y desempate por vértice.
-  - El arreglo extra `enQ` (una lectura más por vecino en la línea 9).
+  - Pesos repetidos y comparación estricta.
   - Frecuencia de la CPU y otros procesos.
 
 ---

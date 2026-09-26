@@ -94,8 +94,8 @@ static double pesoArista(const Grafo& g, int a, int b) {
 }
 
 /**
- * Revisa el resultado de Prim: T tiene |V| − 1 aristas del grafo, la suma de
- * sus pesos es pesoTotal y dk_ops_cascada <= dk_ops.
+ * Revisa el resultado de Prim: T tiene |V| − 1 aristas del grafo y la suma de
+ * sus pesos es pesoTotal.
  * Entrada: grafo g, resultado r de prim sobre g, y texto del caso para los mensajes.
  * Salida: registra las pruebas con REVISAR.
  */
@@ -110,7 +110,6 @@ static void revisarT(const Grafo& g, const ResultadoPrim& r, const std::string& 
     }
     REVISAR(existen, caso << ": toda arista de T existe en el grafo");
     REVISAR(cerca(suma, r.pesoTotal), caso << ": suma de pesos de T " << suma << " != pesoTotal " << r.pesoTotal);
-    REVISAR(r.dkOpsCascada <= r.dkOps, caso << ": dk_ops_cascada <= dk_ops");
 }
 
 /** Revisa que el grafo sea simple, conexo, con e aristas y pesos en (0,1]. */
@@ -205,7 +204,6 @@ static void probarCortesCascada() {
         if (q.ops - antes > 1) huboCascada = true;
     }
     REVISAR(huboCascada, "Fibonacci realiza y cuenta cortes en cascada");
-    REVISAR(q.opsCascada > 0 && q.opsCascada <= q.ops, "opsCascada cuenta los cortes en cascada y opsCascada <= ops");
     for (int v = 1; v < 128; ++v)
         REVISAR(q.extractMin().second == v, "decreaseKey conserva el vértice tras los cortes");
     REVISAR(q.empty(), "Fibonacci vacía después de todos los cortes");

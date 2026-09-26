@@ -244,8 +244,8 @@ int main(int argc, char** argv) {
     std::ofstream fT(salida + "/tiempos_" + suf + ".csv");
     std::ofstream fC(salida + "/curvas_" + suf + ".csv");
     std::ofstream fV(salida + "/verificacion_" + suf + ".csv");
-    fT << "serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops,dk_ops_cascada\n";
-    fC << "serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum,ops_cascada_acum\n";
+    fT << "serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops\n";
+    fC << "serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum\n";
     fV << "serie,i,j,rep,cola_ref,peso_ref,cola,peso,diferencia,ok\n";
     fT << std::setprecision(12);
     fV << std::setprecision(12);
@@ -283,7 +283,7 @@ int main(int argc, char** argv) {
 
                 fT << c.serie << ',' << c.i << ',' << c.j << ',' << v << ',' << e << ',' << rep << ','
                    << sem << ',' << cola << ',' << r.tiempoMs << ',' << r.pesoTotal << ','
-                   << r.dkLlamadas << ',' << r.dkTiempoNs << ',' << r.dkOps << ',' << r.dkOpsCascada << '\n';
+                   << r.dkLlamadas << ',' << r.dkTiempoNs << ',' << r.dkOps << '\n';
 
                 if (q == 0) {
                     pesoRef = r.pesoTotal;
@@ -307,7 +307,7 @@ int main(int argc, char** argv) {
                     ResultadoPrim rc = ejecutar(cola, g, true, k);
                     for (const PuntoCurva& p : cadaK > 0 ? rc.curva : reducirCurva(rc.curva, PUNTOS_CURVA))
                         fC << c.serie << ',' << c.i << ',' << c.j << ',' << rep << ',' << cola << ','
-                           << p.llamadas << ',' << p.tiempoNs << ',' << p.ops << ',' << p.opsCascada << '\n';
+                           << p.llamadas << ',' << p.tiempoNs << ',' << p.ops << '\n';
                 }
             fT.flush(); fC.flush(); fV.flush();  // si se corta, lo ya medido queda en disco
         }

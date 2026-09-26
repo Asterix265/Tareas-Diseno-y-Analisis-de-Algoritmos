@@ -22,8 +22,6 @@ public:
 
     /** Contador de operaciones estructurales en decreaseKey (aquí siempre 0). */
     int64_t ops = 0;
-    /** Contador de cortes en cascada (aquí siempre 0). */
-    int64_t opsCascada = 0;
 
     /** Entrada: n = |V|. Reserva espacio para los vértices 0..n-1. */
     explicit ColaFalsa(int n) : clave(n, std::numeric_limits<double>::infinity()), presente(n, 0) {}

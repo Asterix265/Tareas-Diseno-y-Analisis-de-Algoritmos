@@ -12,9 +12,9 @@ Requiere: matplotlib (pip install matplotlib).
 Gráficos:
   Series A y B (costo total), 4 gráficos: tiempo total vs e (A) o v (B), por cola.
   Series C y D (costo amortizado), 8 gráficos: tiempo acumulado de decreaseKey
-  y conteo de operaciones vs cantidad de llamadas, por cola. El conteo usa
-  intercambios en la binomial (dk_ops) y cortes en cascada en Fibonacci
-  (dk_ops_cascada), como dice la sección 6.3.2 b) del enunciado.
+  y conteo de operaciones vs cantidad de llamadas, por cola. El conteo (dk_ops)
+  son los intercambios en la binomial y todos los cortes en Fibonacci
+  (primer corte + cascada).
 Cada gráfico incluye la cota teórica multiplicada por la constante c que mejor
 ajusta por mínimos cuadrados (c = sum(y*f) / sum(f^2)). Gráficos de una misma
 serie y medida comparten escala (mismo eje y) para comparar ambas colas.
@@ -23,7 +23,7 @@ Tablas (en la carpeta de salida y en markdown por stdout):
   tabla_tiempos.{csv,tex}         series A y B: promedio ± desviación estándar del tiempo total.
   tabla_tiempos_reps.{csv,tex}    anexo, series A y B: el tiempo de cada repetición y el promedio.
   tabla_amortizado.{csv,tex}      series C y D: promedio ± desviación estándar de dk_llamadas,
-                                  tiempo de decreaseKey, dk_ops y dk_ops_cascada.
+                                  tiempo de decreaseKey y dk_ops.
 """
 import argparse
 import csv
@@ -51,10 +51,7 @@ COTAS_DK = {  # costo acumulado de decreaseKey en función de la cantidad de lla
     "fibonacci": (lambda v, k: k, r"$c \cdot k$  (O(1) amortizado)"),
 }
 
-# Contador de operaciones que se grafica para cada cola (sección 6.3.2 b)
-OPS_GRAFICO = {"binomial": "dk_ops", "fibonacci": "dk_ops_cascada"}
-
-ENTEROS = ("i", "j", "v", "e", "rep", "dk_llamadas", "dk_tiempo_ns", "dk_ops", "dk_ops_cascada")
+ENTEROS = ("i", "j", "v", "e", "rep", "dk_llamadas", "dk_tiempo_ns", "dk_ops")
 REALES = ("tiempo_ms", "peso_mst")
 
 
@@ -93,7 +90,7 @@ def agrupar(filas):
 
     Entrada: filas, lista de dicts de leer().
     Salida: dict (serie, i, j, cola) -> dict con v, e, n (repeticiones) y, para
-    tiempo_ms, dk_llamadas, dk_tiempo_ms, dk_ops y dk_ops_cascada, el promedio
+    tiempo_ms, dk_llamadas, dk_tiempo_ms y dk_ops, el promedio
     (clave sin sufijo) y la desviación estándar (sufijo _sd; 0 si hay una sola repetición).
     """
     g = defaultdict(list)
@@ -113,7 +110,6 @@ def agrupar(filas):
             "dk_llamadas": prom("dk_llamadas"), "dk_llamadas_sd": desv("dk_llamadas"),
             "dk_tiempo_ms": prom("dk_tiempo_ns") / 1e6, "dk_tiempo_ms_sd": desv("dk_tiempo_ns") / 1e6,
             "dk_ops": prom("dk_ops"), "dk_ops_sd": desv("dk_ops"),
-            "dk_ops_cascada": prom("dk_ops_cascada"), "dk_ops_cascada_sd": desv("dk_ops_cascada"),
         }
     return res
 
@@ -212,11 +208,11 @@ def graficos_amortizado(agr, colas, salida):
 
     Entrada: agr, salida de agrupar(); colas, nombres de las colas presentes; salida, carpeta.
     Salida: ninguna; escribe dk_<tiempo|ops>_<cola>_serie<C|D>.png. En "ops" se grafica
-    dk_ops en la binomial (intercambios) y dk_ops_cascada en Fibonacci (cortes en cascada).
+    dk_ops: intercambios en la binomial y todos los cortes en Fibonacci (primer corte + cascada).
     Misma escala y dentro de cada serie y medida.
     """
     medidas = (("tiempo", "tiempo acumulado de decreaseKey [ms]"),
-               ("ops", "operaciones (intercambios / cortes en cascada)"))
+               ("ops", "operaciones (intercambios / cortes)"))
     for serie in ("C", "D"):
         for medida, ylabel in medidas:
             datos = {}
@@ -224,7 +220,7 @@ def graficos_amortizado(agr, colas, salida):
                 pts = serie_datos(agr, serie, cola, "dk_llamadas")
                 if not pts or cola not in COTAS_DK:
                     continue
-                ykey = "dk_tiempo_ms" if medida == "tiempo" else OPS_GRAFICO.get(cola, "dk_ops")
+                ykey = "dk_tiempo_ms" if medida == "tiempo" else "dk_ops"
                 f, lab = COTAS_DK[cola]
                 xs = [d["dk_llamadas"] for _, d in pts]
                 ys = [d[ykey] for _, d in pts]
@@ -314,14 +310,13 @@ def tabla_amortizado(agr, salida):
 
     Entrada: agr, salida de agrupar(); salida, carpeta.
     Salida: ninguna; escribe tabla_amortizado.csv y tabla_amortizado.tex e imprime la
-    tabla en markdown. Columnas: dk_llamadas, tiempo acumulado de decreaseKey [ms],
-    dk_ops (intercambios / todos los cortes) y dk_ops_cascada (solo cortes en cascada).
+    tabla en markdown. Columnas: dk_llamadas, tiempo acumulado de decreaseKey [ms] y
+    dk_ops (intercambios en la binomial; todos los cortes en Fibonacci, primer corte + cascada).
     """
     filas = sorted((k, d) for k, d in agr.items() if k[0] in ("C", "D"))
     if not filas:
         return
-    medidas = (("dk_llamadas", "{:.1f}"), ("dk_tiempo_ms", "{:.3f}"), ("dk_ops", "{:.1f}"),
-               ("dk_ops_cascada", "{:.1f}"))
+    medidas = (("dk_llamadas", "{:.1f}"), ("dk_tiempo_ms", "{:.3f}"), ("dk_ops", "{:.1f}"))
     with open(os.path.join(salida, "tabla_amortizado.csv"), "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["serie", "i", "j", "cola", "reps"]
@@ -330,15 +325,15 @@ def tabla_amortizado(agr, salida):
             w.writerow([s, i, j, cola, d["n"]]
                        + [fmt.format(x) for m, fmt in medidas for x in (d[m], d[m + "_sd"])])
     with open(os.path.join(salida, "tabla_amortizado.tex"), "w") as f:
-        f.write("\\begin{tabular}{ccclrrrr}\n\\hline\n"
-                "Serie & $i$ & $j$ & Cola & Llamadas & Tiempo DK [ms] & Operaciones & Cortes en cascada \\\\\n"
+        f.write("\\begin{tabular}{ccclrrr}\n\\hline\n"
+                "Serie & $i$ & $j$ & Cola & Llamadas & Tiempo DK [ms] & Operaciones \\\\\n"
                 "\\hline\n")
         for (s, i, j, cola), d in filas:
             celdas = [f"${fmt.format(d[m])} \\pm {fmt.format(d[m + '_sd'])}$" for m, fmt in medidas]
             f.write(f"{s} & {i} & {j} & {cola} & " + " & ".join(celdas) + " \\\\\n")
         f.write("\\hline\n\\end{tabular}\n")
-    print("\n| serie | i | j | cola | reps | llamadas | tiempo DK [ms] | dk_ops | dk_ops_cascada |")
-    print("|---|---|---|---|---|---|---|---|---|")
+    print("\n| serie | i | j | cola | reps | llamadas | tiempo DK [ms] | dk_ops |")
+    print("|---|---|---|---|---|---|---|---|")
     for (s, i, j, cola), d in filas:
         celdas = [f"{fmt.format(d[m])} ± {fmt.format(d[m + '_sd'])}" for m, fmt in medidas]
         print(f"| {s} | {i} | {j} | {cola} | {d['n']} | " + " | ".join(celdas) + " |")

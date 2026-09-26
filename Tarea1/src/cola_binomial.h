@@ -18,7 +18,6 @@ public:
     static constexpr const char* nombre = "binomial";
     static constexpr bool implementada = true;
     int64_t ops = 0;  // intercambios hechos en decreaseKey
-    int64_t opsCascada = 0;  // cortes en cascada: no existen en la binomial, siempre 0
 
     /** Entrada: cantidad de vértices numerados 0..n-1. */
     explicit ColaBinomial(int n) : nodoDe(n, nullptr) {}

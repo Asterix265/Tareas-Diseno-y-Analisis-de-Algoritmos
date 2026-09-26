@@ -161,9 +161,8 @@ La rúbrica pide explícitamente tres cosas; van primero.
 - [ ] **[ENUNCIADO]** Las mediciones se guardan en memoria y se escriben al terminar (p. 7).
 - [ ] **[DECISIÓN] Qué se cuenta como operación** (6.3.2 b):
   - Binomial: cada **intercambio** del `while` de `decreaseKey`.
-  - Fibonacci: los **cortes en cascada**, es decir, los que hace `cascadingCut` (lectura literal del
-    enunciado). También se registra el total de cortes (primer corte + cascada) y se muestra en la
-    tabla.
+  - Fibonacci: se cuentan **todos los cortes (primer corte + cascada)**. Difiere de la lectura
+    literal de 6.3.2 b), que habla de "cortes en cascada": declararlo y justificarlo.
   - Las marcas no se cuentan.
 - [ ] **[DECISIÓN]** Las curvas por llamada (`curvas_*.csv`) salen de una ejecución **extra** sobre
       el grafo de la repetición 0 y no entran en los promedios.
@@ -172,8 +171,8 @@ La rúbrica pide explícitamente tres cosas; van primero.
 
 - [ ] **[ENUNCIADO]** Tabla de tiempos de A y B con el promedio de cada configuración
       (`tabla_tiempos.tex`; los tiempos de cada repetición van en un anexo).
-- [ ] **[ENUNCIADO]** Tabla de promedios de C y D: llamadas, tiempo acumulado, intercambios o cortes
-      en cascada, y cortes totales.
+- [ ] **[ENUNCIADO]** Tabla de promedios de C y D: llamadas, tiempo acumulado, e intercambios
+      (binomial) o todos los cortes (Fibonacci: primer corte + cascada).
 - [ ] **[ENUNCIADO]** Los **12 gráficos** con los ejes etiquetados:
   - 4 de costo total: binomial y Fibonacci × series A y B.
   - 8 de costo amortizado: tiempo acumulado y operaciones × binomial y Fibonacci × series C y D.
@@ -239,7 +238,8 @@ La rúbrica dice que **aquí** van las respuestas a las **tres preguntas** (§3.
       ¿Crece con log v en binomial (serie D, donde v varía)?
 - [ ] Conteo de operaciones:
   - Intercambios por llamada en binomial: ¿cuántos en promedio frente a la cota log v?
-  - Cortes en cascada por llamada en Fibonacci: ¿acotados por una constante?
+  - Cortes por llamada en Fibonacci (se cuentan todos, primer corte + cascada): ¿acotados por una
+    constante?
 
 ### 4.4 Preguntas guía de la rúbrica
 
@@ -280,7 +280,7 @@ Si no responden, declarar en el informe la interpretación usada.
 
 | # | Texto del enunciado | Interpretación usada |
 |---|---|---|
-| 1 | 6.3.2 b), p. 6: "(cortes en cascada en la cola de Fibonacci, …)" | Solo los cortes de `cascadingCut`. También se reporta el total. |
+| 1 | 6.3.2 b), p. 6: "(cortes en cascada en la cola de Fibonacci, …)" | Se cuentan todos los cortes (primer corte + cascada). |
 | 2 | 6.3.2, p. 6: los ocho gráficos dicen "serie A / serie B" | Se refiere a las series C y D, que son las definidas en 6.3.2. |
 | 3 | 6.2, p. 5: "caso más grande posible (v = 2^15, e = 2^20)" | Se reporta ese caso (lo pedido) y también el mayor de las series. |
 | 4 | 6.3.2 a), p. 6: "graficarlo contra la cantidad de llamadas realizadas" | x = llamadas totales por configuración (5 puntos por serie). La curva dentro de una ejecución está disponible en `curvas_*.csv`. |

@@ -19,7 +19,6 @@ Ambas colas exponen **exactamente** esto (ver `src/cola_falsa.h` como ejemplo qu
 static constexpr const char* nombre;      // "binomial" / "fibonacci"
 static constexpr bool implementada;       // false hasta que pase los tests
 int64_t ops;                              // operaciones estructurales de decreaseKey
-int64_t opsCascada;                       // solo cortes hechos por cascadingCut (0 en binomial y falsa)
 explicit Cola(int n);                     // n = |V|; vértices 0..n-1
 void insert(int v, double key);
 std::pair<double,int> extractMin();       // (costo, vértice)
@@ -37,11 +36,10 @@ static size_t bytesPorNodo();             // para la estimación de memoria
 - **Construcción de Q**: `construir(Q, costos)` en `prim.h`, n llamadas a `insert`
   (costos[r] = 0, resto = ∞), como pide la sección 3.4 del enunciado.
 - **Conteo de operaciones**, solo dentro de `decreaseKey`:
-  - Binomial: `ops` +1 por cada intercambio del `while` (sección 3.2). `opsCascada` = 0.
-  - Fibonacci: `ops` +1 por cada `cut`, incluido el primero. `opsCascada` +1 solo por
-    el `cut` que hace `cascadingCut` (lectura literal de 6.3.2 b: "cortes en cascada").
-  - Los gráficos de operaciones usan `ops` en la binomial y `opsCascada` en Fibonacci;
-    la tabla de C y D muestra ambos contadores.
+  - Binomial: `ops` +1 por cada intercambio del `while` (sección 3.2).
+  - Fibonacci: se cuentan todos los cortes (primer corte + cascada): `ops` +1 por cada
+    `cut`, incluido el primero. Las colas quedan idénticas a las de `97d2a7c`.
+  - Los gráficos y la tabla de C y D usan `ops` en las dos colas.
 - **Comparación**: las colas comparan con el orden total (clave, vértice) (`menor`),
   también en decreaseKey: con claves iguales desempata el vértice menor. Difiere del
   pseudocódigo, que usa `x.key < y.key` estricto; hay que declararlo en el informe.
@@ -51,7 +49,7 @@ static size_t bytesPorNodo();             // para la estimación de memoria
   forma del árbol y el acceso directo a cada vértice sigue siendo correcto.
   La inserción usa acarreos entre raíces de grado igual: `n` inserciones cuestan
   `O(n)` en total. En Fibonacci, cada corte (incluido el inicial) incrementa
-  `ops`, y los de la cascada además `opsCascada`; una raíz nunca queda marcada.
+  `ops`; una raíz nunca queda marcada.
 
 ## Grafo
 
@@ -78,16 +76,16 @@ static size_t bytesPorNodo();             // para la estimación de memoria
   medido) y `main.cpp` la escribe solo en `curvas_*.csv`, reducida a ~4096 puntos
   (`--cada K` guarda un punto cada K llamadas). Esa ejecución no va a `tiempos_*.csv`.
 - **`tiempo_ms` en C y D incluye el costo del reloj** (dos `now()` por decreaseKey).
-  No se compara con A y B; en C y D solo se usan `dk_tiempo_ns`, `dk_ops` y
-  `dk_ops_cascada`. El costo del reloj se mide con `./prim --calibrar`.
+  No se compara con A y B; en C y D solo se usan `dk_tiempo_ns` y `dk_ops`.
+  El costo del reloj se mide con `./prim --calibrar`.
 - Se alterna el orden de las colas entre repeticiones.
 - Experimentos finales: **solo en el servidor Ubuntu**, `-O2`, sin otras cargas.
 
 ## Salida (CSV en `resultados/`)
 
 ```
-tiempos_<series>.csv       serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops,dk_ops_cascada
-curvas_<series>.csv        serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum,ops_cascada_acum
+tiempos_<series>.csv       serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops
+curvas_<series>.csv        serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum
 verificacion_<series>.csv  serie,i,j,rep,cola_ref,peso_ref,cola,peso,diferencia,ok
 ```
 
@@ -97,7 +95,7 @@ Pesos iguales si `|a − b| ≤ 1e-9 · max(1, a)`.
 aparece en más de un `tiempos_*.csv`. Además de los 12 gráficos escribe
 `tabla_tiempos` (A y B, promedio ± desviación estándar), `tabla_tiempos_reps`
 (anexo: cada repetición de A y B) y `tabla_amortizado` (C y D: `dk_llamadas`,
-tiempo de decreaseKey, `dk_ops` y `dk_ops_cascada`).
+tiempo de decreaseKey y `dk_ops`).
 
 ## Convenciones
 

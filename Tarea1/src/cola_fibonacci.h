@@ -19,7 +19,6 @@ public:
     static constexpr const char* nombre = "fibonacci";
     static constexpr bool implementada = true;
     int64_t ops = 0;  // cortes realizados únicamente por decreaseKey
-    int64_t opsCascada = 0;  // solo los cortes hechos por cascadingCut (sin el corte inicial)
 
     /** Entrada: cantidad de vértices 0..n-1. */
     explicit ColaFibonacci(int n) : nodoDe(n, nullptr) {}
@@ -167,7 +166,6 @@ private:
         if (!x->marca) x->marca = true;
         else {
             cortar(x, p);
-            ++opsCascada;
             corteCascada(p);
         }
     }

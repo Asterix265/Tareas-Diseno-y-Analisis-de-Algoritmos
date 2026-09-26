@@ -8,9 +8,9 @@
  *
  * `Cola` debe cumplir la interfaz de docs/ACUERDOS.md (ColaBinomial,
  * ColaFibonacci o ColaFalsa). Prim no sabe nada de nodos: solo usa
- * insert / extractMin / decreaseKey / empty y los contadores `ops` y
- * `opsCascada`. La condición "u ∈ Q" de la línea 9 se decide con el arreglo
- * auxiliar enQ, que no está en el pseudocódigo.
+ * insert / extractMin / decreaseKey / empty y el contador `ops`. La
+ * condición "u ∈ Q" de la línea 9 se decide con el arreglo auxiliar enQ,
+ * que no está en el pseudocódigo.
  */
 #include <chrono>
 #include <cstdint>
@@ -28,7 +28,6 @@ struct PuntoCurva {
     int64_t llamadas;  // llamadas a decreaseKey hechas hasta este punto
     int64_t tiempoNs;  // tiempo acumulado de esas llamadas
     int64_t ops;       // operaciones estructurales acumuladas (contador `ops` de la cola)
-    int64_t opsCascada;  // cortes en cascada acumulados (contador `opsCascada` de la cola)
 };
 
 /** Resultado de una ejecución de Prim. */
@@ -38,8 +37,7 @@ struct ResultadoPrim {
     double tiempoMs = 0.0;          // tiempo total de Prim, líneas 1 a 14
     int64_t dkLlamadas = 0;         // cantidad de llamadas a decreaseKey
     int64_t dkTiempoNs = 0;         // suma de tiempos de decreaseKey (solo si medirDK)
-    int64_t dkOps = 0;              // intercambios (binomial) o todos los cortes (Fibonacci)
-    int64_t dkOpsCascada = 0;       // solo cortes hechos por cascadingCut (Fibonacci; 0 en las otras)
+    int64_t dkOps = 0;              // intercambios (binomial) o todos los cortes (Fibonacci: primer corte + cascada)
     std::vector<PuntoCurva> curva;  // un punto cada `cadaK` llamadas (solo si medirDK y cadaK > 0)
 };
 
@@ -137,7 +135,7 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
                         res.dkTiempoNs += std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count();
                         ++res.dkLlamadas;
                         if (cadaK > 0 && res.dkLlamadas % cadaK == 0)
-                            res.curva.push_back({res.dkLlamadas, res.dkTiempoNs, Q.ops, Q.opsCascada});
+                            res.curva.push_back({res.dkLlamadas, res.dkTiempoNs, Q.ops});
                     } else {
                         Q.decreaseKey(u, w);
                         ++res.dkLlamadas;  // [medición]
@@ -147,7 +145,6 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
         }
         t1 = Reloj::now();  // [medición] antes de destruir Q: liberar memoria no es parte de Prim
         res.dkOps = Q.ops;
-        res.dkOpsCascada = Q.opsCascada;
         // 14: return T
         res.T = std::move(T);
     }

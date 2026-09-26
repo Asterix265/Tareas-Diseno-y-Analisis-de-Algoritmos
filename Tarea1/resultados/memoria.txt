@@ -1,0 +1,23 @@
+Estimacion de memoria (seccion 6.2)
+v = 32768, e = 1048576
+  Lista de adyacencia (CSR, 2e entradas): 24.3 MiB
+  Arreglos costos/parent:                 0.4 MiB
+  Arreglo de punteros a nodos de Q:       0.2 MiB
+  Aristas del MST (T, v-1 pares):         0.2 MiB
+  Nodos cola binomial  (40 B/nodo):  1.2 MiB
+  Nodos cola Fibonacci (56 B/nodo):  1.8 MiB
+  Temporal del generador (se libera):     8.0 MiB
+  Pico generacion (CSR + claves + cursor): 32.5 MiB
+  Pico Prim binomial  (CSR + cola + aux + T):  26.4 MiB
+  Pico Prim Fibonacci (CSR + cola + aux + T):  26.9 MiB
+v = 4194304, e = 16777216
+  Lista de adyacencia (CSR, 2e entradas): 416.0 MiB
+  Arreglos costos/parent:                 48.0 MiB
+  Arreglo de punteros a nodos de Q:       32.0 MiB
+  Aristas del MST (T, v-1 pares):         32.0 MiB
+  Nodos cola binomial  (40 B/nodo):  160.0 MiB
+  Nodos cola Fibonacci (56 B/nodo):  224.0 MiB
+  Temporal del generador (se libera):     128.0 MiB
+  Pico generacion (CSR + claves + cursor): 576.0 MiB
+  Pico Prim binomial  (CSR + cola + aux + T):  688.0 MiB
+  Pico Prim Fibonacci (CSR + cola + aux + T):  752.0 MiB

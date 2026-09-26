@@ -1,0 +1,4 @@
+Calibracion de steady_clock::now() (1000000 llamadas)
+  Tiempo total:       24.110 ms
+  Costo por llamada:  24.11 ns
+  Resolucion nominal: 1.00 ns

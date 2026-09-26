@@ -1,0 +1,13 @@
+serie,medida,cola,cota,c
+A,tiempo_total_ms,binomial,e*log2(v),1.29948e-05
+A,tiempo_total_ms,fibonacci,e + v*log2(v),7.84534e-05
+B,tiempo_total_ms,binomial,e*log2(v),1.6161e-05
+B,tiempo_total_ms,fibonacci,e + v*log2(v),8.82718e-05
+C,tiempo_decreaseKey_ms,binomial,k*log2(v),1.34034e-05
+C,tiempo_decreaseKey_ms,fibonacci,k,0.000238629
+C,intercambios,binomial,k*log2(v),0.138395
+C,cortes_en_cascada,fibonacci,k,0.231572
+D,tiempo_decreaseKey_ms,binomial,k*log2(v),1.2127e-05
+D,tiempo_decreaseKey_ms,fibonacci,k,0.000227482
+D,intercambios,binomial,k*log2(v),0.103989
+D,cortes_en_cascada,fibonacci,k,0.217808

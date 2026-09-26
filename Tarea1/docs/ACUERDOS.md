@@ -89,7 +89,7 @@ static size_t bytesPorNodo();             // para la estimación de memoria
 
 ```
 tiempos_<series>.csv       serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops,dk_ops_cascada
-curvas_<series>.csv        serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum
+curvas_<series>.csv        serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum,ops_cascada_acum
 verificacion_<series>.csv  serie,i,j,rep,cola_ref,peso_ref,cola,peso,diferencia,ok
 ```
 

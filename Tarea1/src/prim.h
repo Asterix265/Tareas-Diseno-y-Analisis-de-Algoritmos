@@ -27,6 +27,7 @@ struct PuntoCurva {
     int64_t llamadas;  // llamadas a decreaseKey hechas hasta este punto
     int64_t tiempoNs;  // tiempo acumulado de esas llamadas
     int64_t ops;       // operaciones estructurales acumuladas (contador `ops` de la cola)
+    int64_t opsCascada;  // cortes en cascada acumulados (contador `opsCascada` de la cola)
 };
 
 /** Resultado de una ejecución de Prim. */
@@ -133,7 +134,7 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
                         res.dkTiempoNs += std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count();
                         ++res.dkLlamadas;
                         if (cadaK > 0 && res.dkLlamadas % cadaK == 0)
-                            res.curva.push_back({res.dkLlamadas, res.dkTiempoNs, Q.ops});
+                            res.curva.push_back({res.dkLlamadas, res.dkTiempoNs, Q.ops, Q.opsCascada});
                     } else {
                         Q.decreaseKey(u, w);
                         ++res.dkLlamadas;  // [medición]

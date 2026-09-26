@@ -125,7 +125,7 @@ los datos del equipo, antes de la batería completa.
 | Archivo | Contenido |
 |---|---|
 | `resultados/tiempos_<series>.csv` | Una fila por (configuración, repetición, cola): tiempo total, peso del MST, llamadas, tiempo y operaciones de `decreaseKey` (`dk_ops`: intercambios o todos los cortes; `dk_ops_cascada`: solo cortes en cascada). |
-| `resultados/curvas_<series>.csv` | Curva acumulada de `decreaseKey` (series C y D), ~4096 puntos espaciados según la cantidad real de llamadas. Sale de una ejecución extra sobre el grafo de la repetición 0, que no se escribe en `tiempos_<series>.csv`. |
+| `resultados/curvas_<series>.csv` | Curva acumulada de `decreaseKey` (series C y D), ~4096 puntos espaciados según la cantidad real de llamadas: tiempo (`tiempo_acum_ns`), operaciones (`ops_acum`) y cortes en cascada (`ops_cascada_acum`). Sale de una ejecución extra sobre el grafo de la repetición 0, que no se escribe en `tiempos_<series>.csv`. |
 | `resultados/verificacion_<series>.csv` | Peso del MST de ambas colas sobre el mismo grafo y si coinciden. |
 
 `graficos.py` escribe en `figuras/` los 12 gráficos y estas tablas (`.csv` y `.tex`):

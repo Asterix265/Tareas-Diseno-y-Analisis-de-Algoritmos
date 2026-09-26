@@ -11,8 +11,13 @@
  *
  * Salida (carpeta --salida, por defecto resultados/), un archivo por invocación:
  *   tiempos_<series>.csv       una fila por (configuración, repetición, cola)
- *   curvas_<series>.csv        curva de decreaseKey acumulado (series C y D, repetición 0)
+ *   curvas_<series>.csv        curva de decreaseKey acumulado (series C y D): sale de una
+ *                              ejecución extra sobre el grafo de la repetición 0, que no
+ *                              se escribe en tiempos_<series>.csv
  *   verificacion_<series>.csv  comparación del peso del MST entre colas
+ *
+ * Código de salida: 0 si todo terminó bien; 1 si los argumentos son inválidos o no hay
+ * colas para ejecutar; 2 si algún MST tuvo pesos distintos entre colas.
  */
 #include <algorithm>
 #include <cmath>
@@ -26,6 +31,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "cola_binomial.h"
@@ -37,11 +43,15 @@
 
 /** Una configuración (i, j) de una serie: v = 2^i, e = 2^j. */
 struct Config {
-    char serie;
+    char serie;  // 'A', 'B', 'C' o 'D' (sección 6.3)
     int i, j;
 };
 
-/** Series de la sección 6.3. A y B: costo total. C y D: costo amortizado. */
+/**
+ * Series de la sección 6.3. A y B: costo total. C y D: costo amortizado.
+ * Entrada: series, letras de las series a correr (p. ej. "ABCD"); una letra desconocida termina el programa.
+ * Salida: las configuraciones (serie, i, j) de esas series, en el orden pedido.
+ */
 static std::vector<Config> configuraciones(const std::string& series) {
     std::vector<Config> cs;
     for (char s : series) {
@@ -56,12 +66,20 @@ static std::vector<Config> configuraciones(const std::string& series) {
     return cs;
 }
 
-/** Semilla determinista por (serie, i, j, rep): cualquier corrida se puede repetir. */
+/**
+ * Semilla determinista por (serie, i, j, rep): cualquier corrida se puede repetir.
+ * Entrada: base (--semilla), configuración c (sin --reducir) y repetición rep (< 100).
+ * Salida: base + serie·10^6 + i·10^4 + j·100 + rep.
+ */
 static uint32_t semilla(uint32_t base, const Config& c, int rep) {
     return base + static_cast<uint32_t>((c.serie - 'A') * 1000000 + c.i * 10000 + c.j * 100 + rep);
 }
 
-/** Ejecuta Prim con la cola indicada por nombre. */
+/**
+ * Ejecuta Prim con la cola indicada por nombre, desde la raíz 0.
+ * Entrada: cola ("binomial", "fibonacci" o "falsa"), grafo g, medirDK y cadaK (ver prim en prim.h).
+ * Salida: el ResultadoPrim de esa ejecución. Lanza invalid_argument si la cola no existe.
+ */
 static ResultadoPrim ejecutar(const std::string& cola, const Grafo& g, bool medirDK, int64_t cadaK) {
     if (cola == "binomial") return prim<ColaBinomial>(g, 0, medirDK, cadaK);
     if (cola == "fibonacci") return prim<ColaFibonacci>(g, 0, medirDK, cadaK);
@@ -86,6 +104,10 @@ static std::vector<PuntoCurva> reducirCurva(const std::vector<PuntoCurva>& curva
     return r;
 }
 
+/**
+ * Entrada: nombre de una cola. Salida: true si la cola existe y tiene
+ * `implementada = true`; false si no existe o si todavía no está implementada.
+ */
 static bool implementada(const std::string& cola) {
     if (cola == "binomial") return ColaBinomial::implementada;
     if (cola == "fibonacci") return ColaFibonacci::implementada;
@@ -93,36 +115,42 @@ static bool implementada(const std::string& cola) {
     return false;
 }
 
+/** Entrada: cantidad de bytes. Salida: texto con esa cantidad en MiB y un decimal (p. ej. "24.3 MiB"). */
 static std::string mb(double bytes) {
     std::ostringstream o;
     o << std::fixed << std::setprecision(1) << bytes / (1024.0 * 1024.0) << " MiB";
     return o.str();
 }
 
-/** Estimación analítica de memoria (sección 6.2) para v vértices y e aristas. */
+/**
+ * Estimación analítica de memoria (sección 6.2) para v vértices y e aristas.
+ * Entrada: v, e. Salida: imprime en stdout cada componente y los picos estimados.
+ */
 static void imprimirMemoria(int64_t v, int64_t e) {
     const double grafo = static_cast<double>(Grafo::bytesEstimados(v, e));
-    const double aux = static_cast<double>(v) * (sizeof(double) + sizeof(int) + sizeof(char));  // costo, padre, enQ
-    const double ptrs = static_cast<double>(v) * sizeof(void*);                                 // nodoDe
+    const double aux = static_cast<double>(v) * (sizeof(double) + sizeof(int));  // costos, parent
+    const double ptrs = static_cast<double>(v) * sizeof(void*);                  // nodoDe
+    const double arbol = static_cast<double>(v - 1) * sizeof(std::pair<int, int>);  // T (línea 5)
     const double gen = static_cast<double>(e) * sizeof(uint64_t);  // temporal del generador
     const double cursor = static_cast<double>(v) * sizeof(int64_t);  // cursor del paso CSR
     // Pico en la generación: CSR completo + claves + cursor viven a la vez (paso 3).
     const double picoGen = grafo + gen + cursor;
-    // Pico en Prim: CSR + nodos de la cola + nodoDe + costo/padre/enQ.
-    const double picoPrimBin = grafo + aux + ptrs + static_cast<double>(v) * ColaBinomial::bytesPorNodo();
-    const double picoPrimFib = grafo + aux + ptrs + static_cast<double>(v) * ColaFibonacci::bytesPorNodo();
+    // Pico en Prim: CSR + nodos de la cola + nodoDe + costos/parent + T.
+    const double picoPrimBin = grafo + aux + ptrs + arbol + static_cast<double>(v) * ColaBinomial::bytesPorNodo();
+    const double picoPrimFib = grafo + aux + ptrs + arbol + static_cast<double>(v) * ColaFibonacci::bytesPorNodo();
     std::cout << "v = " << v << ", e = " << e << "\n"
               << "  Lista de adyacencia (CSR, 2e entradas): " << mb(grafo) << "\n"
-              << "  Arreglos costo/padre/enQ:               " << mb(aux) << "\n"
+              << "  Arreglos costos/parent:                 " << mb(aux) << "\n"
               << "  Arreglo de punteros a nodos de Q:       " << mb(ptrs) << "\n"
+              << "  Aristas del MST (T, v-1 pares):         " << mb(arbol) << "\n"
               << "  Nodos cola binomial  (" << ColaBinomial::bytesPorNodo() << " B/nodo):  "
               << mb(static_cast<double>(v) * ColaBinomial::bytesPorNodo()) << "\n"
               << "  Nodos cola Fibonacci (" << ColaFibonacci::bytesPorNodo() << " B/nodo):  "
               << mb(static_cast<double>(v) * ColaFibonacci::bytesPorNodo()) << "\n"
               << "  Temporal del generador (se libera):     " << mb(gen) << "\n"
               << "  Pico generacion (CSR + claves + cursor): " << mb(picoGen) << "\n"
-              << "  Pico Prim binomial  (CSR + cola + aux):  " << mb(picoPrimBin) << "\n"
-              << "  Pico Prim Fibonacci (CSR + cola + aux):  " << mb(picoPrimFib) << "\n";
+              << "  Pico Prim binomial  (CSR + cola + aux + T):  " << mb(picoPrimBin) << "\n"
+              << "  Pico Prim Fibonacci (CSR + cola + aux + T):  " << mb(picoPrimFib) << "\n";
 }
 
 /**
@@ -138,6 +166,7 @@ static void calibrarReloj(int64_t llamadas) {
     const auto t1 = Reloj::now();
     static volatile int64_t sumidero;
     sumidero = suma;
+    (void)sumidero;  // evita -Wunused-but-set-variable; la escritura volátil se conserva
     const double totalNs = std::chrono::duration<double, std::nano>(t1 - t0).count();
     std::cout << "Calibracion de steady_clock::now() (" << llamadas << " llamadas)\n"
               << "  Tiempo total:       " << std::fixed << std::setprecision(3) << totalNs / 1e6 << " ms\n"
@@ -145,6 +174,12 @@ static void calibrarReloj(int64_t llamadas) {
               << "  Resolucion nominal: " << 1e9 * Reloj::period::num / Reloj::period::den << " ns\n";
 }
 
+/**
+ * Ejecuta la batería de experimentos (o solo --memoria / --calibrar).
+ * Entrada: opciones de línea de comandos (ver el encabezado de este archivo o --ayuda).
+ * Salida: CSV en la carpeta --salida y progreso por stderr; código de salida 0, 1 o 2
+ * (ver el encabezado).
+ */
 int main(int argc, char** argv) {
     std::string series = "ABCD";
     std::string colasArg = "binomial,fibonacci";
@@ -207,7 +242,7 @@ int main(int argc, char** argv) {
     std::ofstream fT(salida + "/tiempos_" + suf + ".csv");
     std::ofstream fC(salida + "/curvas_" + suf + ".csv");
     std::ofstream fV(salida + "/verificacion_" + suf + ".csv");
-    fT << "serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops\n";
+    fT << "serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops,dk_ops_cascada\n";
     fC << "serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum\n";
     fV << "serie,i,j,rep,cola_ref,peso_ref,cola,peso,diferencia,ok\n";
     fT << std::setprecision(12);
@@ -227,8 +262,9 @@ int main(int argc, char** argv) {
                       << " no es posible (e > v(v-1)/2); se omite. Use un --reducir menor.\n";
             continue;
         }
-        // Con --cada K se guarda un punto cada K llamadas y se escribe tal cual;
-        // en automático se guarda cada llamada y se reduce al escribir.
+        // Curva (solo en la ejecución extra): con --cada K se guarda un punto cada K
+        // llamadas y se escribe tal cual; en automático se guarda cada llamada y se
+        // reduce al escribir.
         const int64_t k = cadaK > 0 ? cadaK : 1;
 
         for (int rep = 0; rep < reps; ++rep) {
@@ -240,15 +276,12 @@ int main(int argc, char** argv) {
             // a ninguna con efectos de caché / frecuencia de CPU.
             for (size_t q = 0; q < colas.size(); ++q) {
                 const std::string& cola = colas[(q + rep) % colas.size()];
-                ResultadoPrim r = ejecutar(cola, g, amortizado, amortizado ? k : 0);
+                // Repeticiones medidas: en C y D se mide cada decreaseKey, pero SIN curva (cadaK = 0).
+                ResultadoPrim r = ejecutar(cola, g, amortizado, 0);
 
                 fT << c.serie << ',' << c.i << ',' << c.j << ',' << v << ',' << e << ',' << rep << ','
                    << sem << ',' << cola << ',' << r.tiempoMs << ',' << r.pesoTotal << ','
-                   << r.dkLlamadas << ',' << r.dkTiempoNs << ',' << r.dkOps << '\n';
-                if (amortizado && rep == 0)
-                    for (const PuntoCurva& p : cadaK > 0 ? r.curva : reducirCurva(r.curva, PUNTOS_CURVA))
-                        fC << c.serie << ',' << c.i << ',' << c.j << ',' << rep << ',' << cola << ','
-                           << p.llamadas << ',' << p.tiempoNs << ',' << p.ops << '\n';
+                   << r.dkLlamadas << ',' << r.dkTiempoNs << ',' << r.dkOps << ',' << r.dkOpsCascada << '\n';
 
                 if (q == 0) {
                     pesoRef = r.pesoTotal;
@@ -265,6 +298,15 @@ int main(int argc, char** argv) {
                           << r.tiempoMs << " ms  peso=" << std::setprecision(6) << r.pesoTotal
                           << "  dk=" << r.dkLlamadas << '\n';
             }
+            // Curva de decreaseKey (series C y D): ejecución extra sobre el grafo de la
+            // repetición 0. Va solo a curvas_*.csv; no se escribe en tiempos_*.csv.
+            if (amortizado && rep == 0)
+                for (const std::string& cola : colas) {
+                    ResultadoPrim rc = ejecutar(cola, g, true, k);
+                    for (const PuntoCurva& p : cadaK > 0 ? rc.curva : reducirCurva(rc.curva, PUNTOS_CURVA))
+                        fC << c.serie << ',' << c.i << ',' << c.j << ',' << rep << ',' << cola << ','
+                           << p.llamadas << ',' << p.tiempoNs << ',' << p.ops << '\n';
+                }
             fT.flush(); fC.flush(); fV.flush();  // si se corta, lo ya medido queda en disco
         }
     }

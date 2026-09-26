@@ -15,11 +15,15 @@
 
 class ColaFalsa {
 public:
+    /** Nombre con que main.cpp y los CSV identifican esta cola (--colas falsa). */
     static constexpr const char* nombre = "falsa";
+    /** true: la cola participa en los tests y en ./prim (false = se omite con un aviso). */
     static constexpr bool implementada = true;
 
     /** Contador de operaciones estructurales en decreaseKey (aquí siempre 0). */
     int64_t ops = 0;
+    /** Contador de cortes en cascada (aquí siempre 0). */
+    int64_t opsCascada = 0;
 
     /** Entrada: n = |V|. Reserva espacio para los vértices 0..n-1. */
     explicit ColaFalsa(int n) : clave(n, std::numeric_limits<double>::infinity()), presente(n, 0) {}
@@ -47,6 +51,9 @@ public:
 
     /** Salida: true si la cola no tiene elementos. */
     bool empty() const { return tam == 0; }
+
+    /** Entrada: vértice v en 0..n-1. Salida: true si v todavía está en la cola. */
+    bool contiene(int v) const { return presente[v] != 0; }
 
     /** Bytes por elemento almacenado (para la estimación de memoria). */
     static size_t bytesPorNodo() { return sizeof(double) + sizeof(char); }

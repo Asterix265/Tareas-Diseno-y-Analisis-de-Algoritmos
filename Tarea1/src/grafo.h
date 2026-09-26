@@ -13,21 +13,16 @@
 #include <cstdint>
 #include <vector>
 
+/**
+ * Grafo no dirigido con pesos, en formato CSR (listas de adyacencia en arreglos contiguos).
+ * Lo construye generarGrafo (generador.h) y lo lee prim (prim.h).
+ */
 struct Grafo {
     int n = 0;                    // |V|, vértices numerados 0..n-1
     int64_t m = 0;                // |E|, aristas no dirigidas
     std::vector<int64_t> inicio;  // tamaño n+1
     std::vector<int> destino;     // tamaño 2m
     std::vector<double> peso;     // tamaño 2m, pesos en (0,1]
-
-    /**
-     * Bytes ocupados por los arreglos del grafo (sin contar el struct).
-     * Salida: cantidad de bytes.
-     */
-    size_t bytes() const {
-        return inicio.size() * sizeof(int64_t) + destino.size() * sizeof(int) +
-               peso.size() * sizeof(double);
-    }
 
     /**
      * Estimación analítica de bytes para un grafo CSR con n vértices y m aristas.

@@ -23,7 +23,11 @@
 #include "grafo.h"
 
 namespace detalle {
-/** Codifica la arista no dirigida {a,b} como un entero de 64 bits (menor, mayor). */
+/**
+ * Codifica la arista no dirigida {a,b} como un entero de 64 bits.
+ * Entrada: extremos a y b (en cualquier orden).
+ * Salida: (min(a,b) << 32) | max(a,b); {a,b} y {b,a} dan la misma clave.
+ */
 inline uint64_t clave(uint32_t a, uint32_t b) {
     if (a > b) std::swap(a, b);
     return (static_cast<uint64_t>(a) << 32) | b;

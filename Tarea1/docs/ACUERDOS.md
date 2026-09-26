@@ -19,28 +19,41 @@ Ambas colas exponen **exactamente** esto (ver `src/cola_falsa.h` como ejemplo qu
 static constexpr const char* nombre;      // "binomial" / "fibonacci"
 static constexpr bool implementada;       // false hasta que pase los tests
 int64_t ops;                              // operaciones estructurales de decreaseKey
+int64_t opsCascada;                       // solo cortes hechos por cascadingCut (0 en binomial y falsa)
 explicit Cola(int n);                     // n = |V|; vértices 0..n-1
 void insert(int v, double key);
 std::pair<double,int> extractMin();       // (costo, vértice)
 void decreaseKey(int v, double key);      // key <= costo actual
 bool empty() const;
+bool contiene(int v) const;               // true si v todavía está en la cola (línea 9 de Prim)
 static size_t bytesPorNodo();             // para la estimación de memoria
 ~Cola();                                  // libera todos los nodos
 ```
 
 - El arreglo vértice → nodo (`nodoDe`) vive **dentro** de la cola.
-- Prim controla `u ∈ Q` con su propio `vector<char> enQ`; la cola no lo necesita.
-- **Construcción de Q**: n llamadas a `insert` (costo[r] = 0, resto = ∞), como pide el enunciado.
-- **Conteo de operaciones** (`ops`), solo dentro de `decreaseKey`:
-  - Binomial: +1 por cada intercambio del `while` (sección 3.2).
-  - Fibonacci: +1 por cada `cut`, incluido el primero (no solo los de la cascada).
+- Prim decide `u ∈ Q` con `Q.contiene(u)` (`nodoDe[u] != nullptr` en binomial y
+  Fibonacci, `presente[u]` en la falsa). No hay arreglo `enQ` en Prim: los arreglos
+  auxiliares son exactamente los de la sección 6.2 (costos, parent y `nodoDe`).
+- **Construcción de Q**: `construir(Q, costos)` en `prim.h`, n llamadas a `insert`
+  (costos[r] = 0, resto = ∞), como pide la sección 3.4 del enunciado.
+- **Conteo de operaciones**, solo dentro de `decreaseKey`:
+  - Binomial: `ops` +1 por cada intercambio del `while` (sección 3.2). `opsCascada` = 0.
+  - Fibonacci: `ops` +1 por cada `cut`, incluido el primero. `opsCascada` +1 solo por
+    el `cut` que hace `cascadingCut` (lectura literal de 6.3.2 b: "cortes en cascada").
+  - Los gráficos de operaciones usan `ops` en la binomial y `opsCascada` en Fibonacci;
+    la tabla de C y D muestra ambos contadores.
+- **Comparación en decreaseKey**: solo claves y en forma estricta
+  (`x->clave < padre->clave`, línea 3 de ambos pseudocódigos). Con claves iguales no
+  hay intercambio (binomial) ni corte (Fibonacci). El desempate por vértice (`menor`)
+  se usa solo para elegir el mínimo (y al enlazar árboles), no en decreaseKey. Por
+  eso, en Fibonacci el mínimo se actualiza en decreaseKey solo si el nodo es raíz.
 - Lo privado (structs de nodo, helpers) lo decide A libremente.
 - Decisión implementada: en la binomial se intercambian clave y vértice, y en
   el mismo paso se actualizan ambas entradas de `nodoDe`. Así se conserva la
   forma del árbol y el acceso directo a cada vértice sigue siendo correcto.
   La inserción usa acarreos entre raíces de grado igual: `n` inserciones cuestan
   `O(n)` en total. En Fibonacci, cada corte (incluido el inicial) incrementa
-  `ops`; una raíz nunca queda marcada.
+  `ops`, y los de la cascada además `opsCascada`; una raíz nunca queda marcada.
 
 ## Grafo
 
@@ -55,27 +68,38 @@ static size_t bytesPorNodo();             // para la estimación de memoria
 ## Medición
 
 - Reloj: `std::chrono::steady_clock` siempre.
-- Tiempo total = solo Prim (incluye construir Q; excluye generar el grafo y destruir Q).
+- Tiempo total = líneas 1 a 14 de Prim: `t0` se toma **antes de la línea 1**, así que
+  incluye inicializar costos/parent, construir Q y T. Excluye generar el grafo y destruir Q.
+- `prim.h` es una traducción literal de Prim(G, r): cada bloque lleva su número de línea;
+  `parent[v] = INDEFINIDO` (−2) es distinto del −1 de la raíz; T es un
+  `vector<pair<int,int>>` que se retorna dentro de `ResultadoPrim`.
 - Series A y B: sin medir decreaseKey individualmente (el reloj cuesta ~20–50 ns).
-- Series C y D: se mide cada decreaseKey y se acumula. Además, `prim.h` guarda el
-  tiempo y las operaciones acumuladas de **cada** llamada (fuera del intervalo medido)
-  y `main.cpp` escribe la curva de la repetición 0 reducida a ~4096 puntos espaciados
-  según la cantidad real de llamadas (`--cada K` guarda un punto cada K llamadas).
-- **`tiempo_ms` en C y D incluye el costo del reloj** (dos `now()` por decreaseKey
-  más guardar la curva). No se compara con A y B; en C y D solo se usan
-  `dk_tiempo_ns` y `dk_ops`. El costo del reloj se mide con `./prim --calibrar`.
+- Series C y D: en las 10 repeticiones se mide cada decreaseKey y se acumula, **sin curva**.
+  La curva sale de una ejecución **extra** sobre el grafo de la repetición 0: `prim.h`
+  guarda el tiempo y las operaciones acumuladas de cada llamada (fuera del intervalo
+  medido) y `main.cpp` la escribe solo en `curvas_*.csv`, reducida a ~4096 puntos
+  (`--cada K` guarda un punto cada K llamadas). Esa ejecución no va a `tiempos_*.csv`.
+- **`tiempo_ms` en C y D incluye el costo del reloj** (dos `now()` por decreaseKey).
+  No se compara con A y B; en C y D solo se usan `dk_tiempo_ns`, `dk_ops` y
+  `dk_ops_cascada`. El costo del reloj se mide con `./prim --calibrar`.
 - Se alterna el orden de las colas entre repeticiones.
 - Experimentos finales: **solo en el servidor Ubuntu**, `-O2`, sin otras cargas.
 
 ## Salida (CSV en `resultados/`)
 
 ```
-tiempos_<series>.csv       serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops
+tiempos_<series>.csv       serie,i,j,v,e,rep,semilla,cola,tiempo_ms,peso_mst,dk_llamadas,dk_tiempo_ns,dk_ops,dk_ops_cascada
 curvas_<series>.csv        serie,i,j,rep,cola,llamadas,tiempo_acum_ns,ops_acum
 verificacion_<series>.csv  serie,i,j,rep,cola_ref,peso_ref,cola,peso,diferencia,ok
 ```
 
 Pesos iguales si `|a − b| ≤ 1e-9 · max(1, a)`.
+
+`scripts/graficos.py` termina con error si la misma fila (serie, i, j, rep, cola)
+aparece en más de un `tiempos_*.csv`. Además de los 12 gráficos escribe
+`tabla_tiempos` (A y B, promedio ± desviación estándar), `tabla_tiempos_reps`
+(anexo: cada repetición de A y B) y `tabla_amortizado` (C y D: `dk_llamadas`,
+tiempo de decreaseKey, `dk_ops` y `dk_ops_cascada`).
 
 ## Convenciones
 

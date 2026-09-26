@@ -20,13 +20,13 @@ tienen `implementada = true` y participan en los tests y en los experimentos.
 | `src/grafo.h` | ✅ Listo | Infra | Grafo en formato CSR (`inicio`, `destino`, `peso`); cada arista se guarda dos veces. Incluye `bytesEstimados(n, m)` para la sección 6.2. |
 | `src/aleatorio.h` | ✅ Listo | Infra | Envoltorio de `std::mt19937` con conversiones hechas a mano (`enRango`, `peso` en (0,1]). Misma semilla ⇒ mismos números en cualquier SO. |
 | `src/generador.h` | ✅ Listo | Infra | `generarGrafo(v, e, semilla)`: árbol cobertor aleatorio + aristas al azar, descartando repetidas y lazos. Memoria O(e), sin matrices v×v. |
-| `src/prim.h` | ✅ Listo | Infra | `prim<Cola>(g, raiz, medirDK, cadaK)`: Prim genérico. Mide el tiempo total, cuenta las llamadas a `decreaseKey` y, en las series C/D, su tiempo acumulado y una curva. |
+| `src/prim.h` | ✅ Listo | Infra | `prim<Cola>(g, r, medirDK, cadaK)`: traducción literal de Prim(G, r) (sección 4.1), con el número de línea del pseudocódigo en cada bloque. Retorna T (aristas del MST) y su peso. Mide el tiempo total (desde antes de la línea 1), cuenta las llamadas a `decreaseKey` y, en las series C/D, su tiempo acumulado (y la curva, solo en la ejecución extra). |
 | `src/main.cpp` | ✅ Listo | Infra | Corre las series A–D sin tocar código y escribe los CSV en `resultados/`. Verifica que ambas colas den el mismo peso de MST. |
 | `src/cola_falsa.h` | ✅ Listo | — | Cola trivial (arreglo + búsqueda lineal, O(n) por extracción). Solo para desarrollo y como referencia en los tests. |
-| `src/cola_binomial.h` | ✅ Listo | Colas | Raíces ordenadas por grado; `insert` con acarreos (n inserciones en O(n)); `decreaseKey` intercambia clave y vértice con el padre y actualiza `nodoDe`. |
-| `src/cola_fibonacci.h` | ✅ Listo | Colas | Anillos doblemente enlazados; `extractMin` consolida por grado; `decreaseKey` con `cortar` y `corteCascada` (cada corte suma a `ops`). |
-| `tests/tests.cpp` | ✅ Listo | Ambos | Prueba el generador; cada cola contra `ColaFalsa` con operaciones aleatorias; Prim contra Kruskal. Las colas no implementadas se omiten. |
-| `scripts/graficos.py` | ✅ Listo | Infra | Los 12 gráficos con la cota teórica ajustada por mínimos cuadrados, y la tabla de tiempos (CSV + LaTeX). |
+| `src/cola_binomial.h` | ✅ Listo | Colas | Raíces ordenadas por grado; `insert` con acarreos (n inserciones en O(n)); `decreaseKey` intercambia clave y vértice con el padre mientras `x.key < padre.key` (estricto) y actualiza `nodoDe`. |
+| `src/cola_fibonacci.h` | ✅ Listo | Colas | Anillos doblemente enlazados; `extractMin` consolida por grado; `decreaseKey` corta si `x.key < padre.key` (estricto) y aplica `cortar` y `corteCascada` (cada corte suma a `ops`; los de la cascada, además, a `opsCascada`). |
+| `tests/tests.cpp` | ✅ Listo | Ambos | Prueba el generador; cada cola contra `ColaFalsa` con operaciones aleatorias (incluido `contiene`); Prim contra Kruskal, y T (\|V\|−1 aristas cuyo peso suma `pesoTotal`). Las colas no implementadas se omiten. |
+| `scripts/graficos.py` | ✅ Listo | Infra | Los 12 gráficos con la cota teórica ajustada por mínimos cuadrados, y las tablas (CSV + LaTeX): tiempos de A y B, anexo con cada repetición y promedios de C y D. |
 | `docs/ACUERDOS.md` | ✅ Listo | Ambos | Interfaz congelada, convenciones, formato de CSV, preguntas para auxiliares. |
 | `docs/PLAN.md` | ✅ Listo | Ambos | Tareas de cada persona y trabajo conjunto antes de los experimentos. |
 
@@ -38,9 +38,11 @@ Prim no conoce los nodos de las colas; solo usa estos métodos (resumen de `docs
 explicit Cola(int n);                  // n = |V|
 void insert(int v, double key);
 std::pair<double,int> extractMin();    // (costo, vértice)
-void decreaseKey(int v, double key);
+void decreaseKey(int v, double key);   // compara claves en forma estricta (x.key < padre.key)
 bool empty() const;
-int64_t ops;                           // intercambios (binomial) o cortes (Fibonacci) en decreaseKey
+bool contiene(int v) const;            // v ∈ Q (línea 9 de Prim)
+int64_t ops;                           // intercambios (binomial) o todos los cortes (Fibonacci) en decreaseKey
+int64_t opsCascada;                    // solo cortes en cascada (Fibonacci); 0 en las otras colas
 static constexpr bool implementada;    // poner en true cuando la cola pase los tests
 static size_t bytesPorNodo();          // para la estimación de memoria
 ```
@@ -83,7 +85,7 @@ O con `make` (Linux/macOS): `make` compila ambos, `make test` corre las pruebas,
 ```bash
 ./tests_bin                  # pruebas de corrección (grafos chicos vs Kruskal)
 ./prim                       # TODOS los experimentos: series A–D, 10 repeticiones, ambas colas
-python3 scripts/graficos.py  # 12 gráficos + tabla en figuras/
+python3 scripts/graficos.py  # 12 gráficos + tablas en figuras/
 ```
 
 `./prim` no necesita argumentos para correr la batería completa. Opciones:
@@ -96,7 +98,7 @@ python3 scripts/graficos.py  # 12 gráficos + tabla en figuras/
 | `--reducir k` | Resta k a i y j (prueba rápida con grafos 2^k veces más chicos) | `0` |
 | `--salida dir` | Carpeta de los CSV | `resultados` |
 | `--semilla S` | Semilla base | `20260928` |
-| `--cada K` | Guarda un punto de la curva cada K llamadas a decreaseKey | automático: se guarda cada llamada y se reduce a ~4096 puntos |
+| `--cada K` | Guarda un punto de la curva cada K llamadas a decreaseKey (solo en la ejecución extra de la curva) | automático: se guarda cada llamada y se reduce a ~4096 puntos |
 | `--memoria` | Solo imprime la estimación de memoria (sección 6.2) | — |
 | `--calibrar` | Solo mide el costo promedio de `steady_clock::now()` con 10^6 llamadas seguidas | — |
 
@@ -122,14 +124,27 @@ los datos del equipo, antes de la batería completa.
 
 | Archivo | Contenido |
 |---|---|
-| `resultados/tiempos_<series>.csv` | Una fila por (configuración, repetición, cola): tiempo total, peso del MST, llamadas, tiempo y operaciones de `decreaseKey`. |
-| `resultados/curvas_<series>.csv` | Curva acumulada de `decreaseKey` (series C y D, repetición 0), ~4096 puntos espaciados según la cantidad real de llamadas. |
+| `resultados/tiempos_<series>.csv` | Una fila por (configuración, repetición, cola): tiempo total, peso del MST, llamadas, tiempo y operaciones de `decreaseKey` (`dk_ops`: intercambios o todos los cortes; `dk_ops_cascada`: solo cortes en cascada). |
+| `resultados/curvas_<series>.csv` | Curva acumulada de `decreaseKey` (series C y D), ~4096 puntos espaciados según la cantidad real de llamadas. Sale de una ejecución extra sobre el grafo de la repetición 0, que no se escribe en `tiempos_<series>.csv`. |
 | `resultados/verificacion_<series>.csv` | Peso del MST de ambas colas sobre el mismo grafo y si coinciden. |
 
+`graficos.py` escribe en `figuras/` los 12 gráficos y estas tablas (`.csv` y `.tex`):
+
+| Archivo | Contenido |
+|---|---|
+| `tabla_tiempos` | Series A y B: tiempo total, promedio ± desviación estándar. |
+| `tabla_tiempos_reps` | Anexo, series A y B: el tiempo de cada repetición y el promedio. |
+| `tabla_amortizado` | Series C y D: `dk_llamadas`, tiempo de decreaseKey, `dk_ops` y `dk_ops_cascada`, promedio ± desviación estándar. |
+
+Los gráficos de operaciones usan intercambios (`dk_ops`) en la binomial y cortes en
+cascada (`dk_ops_cascada`) en Fibonacci, como dice la sección 6.3.2 b) del enunciado.
+Si la misma fila (serie, i, j, rep, cola) aparece en dos `tiempos_*.csv`, `graficos.py`
+termina con un error para no contarla dos veces.
+
 > **Ojo con `tiempo_ms` en las series C y D:** ahí cada `decreaseKey` se mide con dos
-> llamadas a `steady_clock::now()` y además se guarda la curva, así que el tiempo total
-> incluye el costo del reloj. **No se compara con A y B.** Para el costo total se usan
-> A y B; para el costo amortizado, `dk_tiempo_ns` y `dk_ops` de C y D.
+> llamadas a `steady_clock::now()`, así que el tiempo total incluye el costo del reloj.
+> **No se compara con A y B.** Para el costo total se usan A y B; para el costo
+> amortizado, `dk_tiempo_ns`, `dk_ops` y `dk_ops_cascada` de C y D.
 
 Cada fila se escribe apenas termina, así que si la corrida se corta, lo medido no
 se pierde. Las corridas con `--reducir` llevan el sufijo `_red<k>` y `graficos.py`
@@ -173,15 +188,18 @@ figuras/            PNG y tablas generados por graficos.py
 
 1. `generarGrafo` crea un árbol aleatorio, agrega aristas sin repeticiones y
    transforma la lista en CSR. El peso se obtiene de `Aleatorio::peso`.
-2. `prim<Cola>` inserta todos los vértices, extrae el mínimo y reduce la clave
-   de cada vecino que mejora su conexión con el árbol.
+2. `prim<Cola>` sigue el pseudocódigo línea a línea: inicializa costos y parent,
+   construye Q con `construir` (n inserciones), extrae el mínimo, agrega
+   (parent[v], v) a T y reduce la clave de cada vecino u ∈ Q (`Q.contiene(u)`)
+   que mejora su conexión con el árbol.
 3. `ColaBinomial::insert` une árboles de igual grado mediante acarreos;
    `extractMin` promueve los hijos del mínimo; `decreaseKey` intercambia
-   contenido con el padre y actualiza `nodoDe`.
+   contenido con el padre mientras su clave sea estrictamente menor y actualiza `nodoDe`.
 4. `ColaFibonacci::insert` añade una raíz; `extractMin` consolida raíces
    del mismo grado; `decreaseKey` aplica `cortar` y `corteCascada`.
 5. `main.cpp` ejecuta las cuatro series con semillas reproducibles, guarda
-   tiempos y contadores en CSV, y verifica los pesos de ambos MST.
+   tiempos y contadores en CSV, verifica los pesos de ambos MST y, en C y D,
+   hace una ejecución extra sobre el grafo de la repetición 0 para la curva.
 
 ## Reproducibilidad
 

@@ -28,6 +28,10 @@
 #include "prim.h"
 
 static int fallas = 0, pruebas = 0;
+/**
+ * Registra una prueba. Entrada: condición `cond` y mensaje `msg` (se puede
+ * encadenar con <<). Salida: si cond es falsa, cuenta una falla e imprime msg en stderr.
+ */
 #define REVISAR(cond, msg)                                                  \
     do {                                                                    \
         ++pruebas;                                                          \
@@ -52,7 +56,10 @@ static Grafo desdeAristas(int n, const std::vector<std::tuple<int, int, double>>
     return g;
 }
 
-/** Kruskal con union-find: MST de referencia, independiente de las colas. */
+/**
+ * Kruskal con union-find: MST de referencia, independiente de las colas.
+ * Entrada: grafo conexo g. Salida: peso total del MST.
+ */
 static double kruskal(const Grafo& g) {
     std::vector<std::tuple<double, int, int>> as;
     for (int u = 0; u < g.n; ++u)
@@ -70,7 +77,41 @@ static double kruskal(const Grafo& g) {
     return total;
 }
 
+/**
+ * Compara dos pesos con la misma tolerancia que main.cpp.
+ * Entrada: a, b. Salida: true si |a − b| <= 1e-9 · max(1, |b|).
+ */
 static bool cerca(double a, double b) { return std::fabs(a - b) <= 1e-9 * std::max(1.0, std::fabs(b)); }
+
+/**
+ * Busca la arista {a,b} en la lista de adyacencia de a.
+ * Entrada: grafo g y extremos a, b. Salida: w(a,b), o -1 si la arista no existe.
+ */
+static double pesoArista(const Grafo& g, int a, int b) {
+    for (int64_t k = g.inicio[a]; k < g.inicio[a + 1]; ++k)
+        if (g.destino[k] == b) return g.peso[k];
+    return -1.0;
+}
+
+/**
+ * Revisa el resultado de Prim: T tiene |V| − 1 aristas del grafo, la suma de
+ * sus pesos es pesoTotal y dk_ops_cascada <= dk_ops.
+ * Entrada: grafo g, resultado r de prim sobre g, y texto del caso para los mensajes.
+ * Salida: registra las pruebas con REVISAR.
+ */
+static void revisarT(const Grafo& g, const ResultadoPrim& r, const std::string& caso) {
+    REVISAR(static_cast<int64_t>(r.T.size()) == g.n - 1, caso << ": T con |V|-1 aristas");
+    double suma = 0.0;
+    bool existen = true;
+    for (const auto& [p, v] : r.T) {
+        const double w = pesoArista(g, p, v);
+        if (w < 0) existen = false;
+        suma += w;
+    }
+    REVISAR(existen, caso << ": toda arista de T existe en el grafo");
+    REVISAR(cerca(suma, r.pesoTotal), caso << ": suma de pesos de T " << suma << " != pesoTotal " << r.pesoTotal);
+    REVISAR(r.dkOpsCascada <= r.dkOps, caso << ": dk_ops_cascada <= dk_ops");
+}
 
 /** Revisa que el grafo sea simple, conexo, con e aristas y pesos en (0,1]. */
 static void probarGenerador() {
@@ -113,7 +154,11 @@ static void probarGenerador() {
               << a.destino[2] << "  suma pesos=" << std::setprecision(15) << suma << "\n";
 }
 
-/** Secuencia aleatoria de operaciones comparada contra ColaFalsa. */
+/**
+ * Secuencia aleatoria de operaciones comparada contra ColaFalsa; también
+ * revisa contiene() de ambas colas después de cada extracción.
+ * Entrada: tipo Cola (plantilla). Salida: registra las pruebas con REVISAR.
+ */
 template <class Cola>
 static void probarCola() {
     std::cout << "Cola " << Cola::nombre << "\n";
@@ -123,13 +168,15 @@ static void probarCola() {
         Cola q(n);
         ColaFalsa ref(n);
         std::vector<double> clave(n);
-        std::vector<char> dentro(n, 1);
+        std::vector<char> dentro(n, 1), dentroRef(n, 1);
         for (int v = 0; v < n; ++v) {
             clave[v] = rng.peso();
             q.insert(v, clave[v]);
             ref.insert(v, clave[v]);
         }
-        bool ok = true;
+        bool ok = true, contieneOk = true;
+        for (int v = 0; v < n; ++v)
+            if (!q.contiene(v) || !ref.contiene(v)) contieneOk = false;
         int quedan = n;
         while (quedan > 0 && ok) {
             for (int t = 0; t < 3; ++t) {  // algunos decreaseKey entre extracciones
@@ -143,9 +190,13 @@ static void probarCola() {
             auto b = ref.extractMin();
             if (a.first != b.first) ok = false;  // el vértice puede diferir si hay empates
             dentro[a.second] = 0;
+            dentroRef[b.second] = 0;
             --quedan;
+            for (int v = 0; v < n; ++v)
+                if (q.contiene(v) != (dentro[v] != 0) || ref.contiene(v) != (dentroRef[v] != 0)) contieneOk = false;
         }
         REVISAR(ok && q.empty(), "extractMin coincide con la referencia, n=" << n);
+        REVISAR(contieneOk, "contiene() coincide con los vertices presentes, n=" << n);
     }
 }
 
@@ -161,6 +212,7 @@ static void probarCortesCascada() {
         if (q.ops - antes > 1) huboCascada = true;
     }
     REVISAR(huboCascada, "Fibonacci realiza y cuenta cortes en cascada");
+    REVISAR(q.opsCascada > 0 && q.opsCascada <= q.ops, "opsCascada cuenta los cortes en cascada y opsCascada <= ops");
     for (int v = 1; v < 128; ++v)
         REVISAR(q.extractMin().second == v, "decreaseKey conserva el vértice tras los cortes");
     REVISAR(q.empty(), "Fibonacci vacía después de todos los cortes");
@@ -180,9 +232,7 @@ static void probarPrim() {
                                    {0, 6, 0.6}, {3, 6, 0.5}, {5, 8, 0.6}, {6, 9, 0.4}});
     ResultadoPrim r = prim<Cola>(mano);
     REVISAR(cerca(r.pesoTotal, 1.29), "grafo a mano: peso " << r.pesoTotal << " != 1.29");
-    int aristas = 0;
-    for (int p : r.padre) aristas += (p != -1);
-    REVISAR(aristas == 9, "MST con |V|-1 aristas");
+    revisarT(mano, r, "grafo a mano");
 
     for (int t = 0; t < 30; ++t) {
         int v = 2 + t * 7;
@@ -190,9 +240,11 @@ static void probarPrim() {
         Grafo g = generarGrafo(v, e, 500 + t);
         ResultadoPrim rp = prim<Cola>(g, 0, t % 2 == 0, 5);
         REVISAR(cerca(rp.pesoTotal, kruskal(g)), "aleatorio v=" << v << " e=" << e);
+        revisarT(g, rp, "aleatorio v=" + std::to_string(v));
     }
 }
 
+/** Corre todas las pruebas. Salida: resumen por stdout; código 0 si no hubo fallas, 1 si las hubo. */
 int main() {
     probarGenerador();
     probarCola<ColaBinomial>();

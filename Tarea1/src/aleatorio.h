@@ -10,6 +10,10 @@
 #include <cstdint>
 #include <random>
 
+/**
+ * Generador pseudoaleatorio reproducible: envuelve std::mt19937 y convierte
+ * su salida a rangos y a pesos sin usar las distribuciones de la biblioteca.
+ */
 class Aleatorio {
 public:
     /** Entrada: semilla. Crea el generador. */

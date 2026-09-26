@@ -23,9 +23,9 @@ tienen `implementada = true` y participan en los tests y en los experimentos.
 | `src/prim.h` | ✅ Listo | Infra | `prim<Cola>(g, r, medirDK, cadaK)`: traducción literal de Prim(G, r) (sección 4.1), con el número de línea del pseudocódigo en cada bloque. Retorna T (aristas del MST) y su peso. Mide el tiempo total (desde antes de la línea 1), cuenta las llamadas a `decreaseKey` y, en las series C/D, su tiempo acumulado (y la curva, solo en la ejecución extra). |
 | `src/main.cpp` | ✅ Listo | Infra | Corre las series A–D sin tocar código y escribe los CSV en `resultados/`. Verifica que ambas colas den el mismo peso de MST. |
 | `src/cola_falsa.h` | ✅ Listo | — | Cola trivial (arreglo + búsqueda lineal, O(n) por extracción). Solo para desarrollo y como referencia en los tests. |
-| `src/cola_binomial.h` | ✅ Listo | Colas | Raíces ordenadas por grado; `insert` con acarreos (n inserciones en O(n)); `decreaseKey` intercambia clave y vértice con el padre mientras `x.key < padre.key` (estricto) y actualiza `nodoDe`. |
-| `src/cola_fibonacci.h` | ✅ Listo | Colas | Anillos doblemente enlazados; `extractMin` consolida por grado; `decreaseKey` corta si `x.key < padre.key` (estricto) y aplica `cortar` y `corteCascada` (cada corte suma a `ops`; los de la cascada, además, a `opsCascada`). |
-| `tests/tests.cpp` | ✅ Listo | Ambos | Prueba el generador; cada cola contra `ColaFalsa` con operaciones aleatorias (incluido `contiene`); Prim contra Kruskal, y T (\|V\|−1 aristas cuyo peso suma `pesoTotal`). Las colas no implementadas se omiten. |
+| `src/cola_binomial.h` | ✅ Listo | Colas | Raíces ordenadas por grado; `insert` con acarreos (n inserciones en O(n)); `decreaseKey` intercambia clave y vértice con el padre mientras sea menor en el orden (clave, vértice) y actualiza `nodoDe`. |
+| `src/cola_fibonacci.h` | ✅ Listo | Colas | Anillos doblemente enlazados; `extractMin` consolida por grado; `decreaseKey` corta si es menor que el padre en el orden (clave, vértice) y aplica `cortar` y `corteCascada` (cada corte suma a `ops`; los de la cascada, además, a `opsCascada`). |
+| `tests/tests.cpp` | ✅ Listo | Ambos | Prueba el generador; cada cola contra `ColaFalsa` con operaciones aleatorias; Prim contra Kruskal, y T (\|V\|−1 aristas cuyo peso suma `pesoTotal`). Las colas no implementadas se omiten. |
 | `scripts/graficos.py` | ✅ Listo | Infra | Los 12 gráficos con la cota teórica ajustada por mínimos cuadrados, y las tablas (CSV + LaTeX): tiempos de A y B, anexo con cada repetición y promedios de C y D. |
 | `docs/ACUERDOS.md` | ✅ Listo | Ambos | Interfaz congelada, convenciones, formato de CSV, preguntas para auxiliares. |
 | `docs/PLAN.md` | ✅ Listo | Ambos | Tareas de cada persona y trabajo conjunto antes de los experimentos. |
@@ -38,9 +38,8 @@ Prim no conoce los nodos de las colas; solo usa estos métodos (resumen de `docs
 explicit Cola(int n);                  // n = |V|
 void insert(int v, double key);
 std::pair<double,int> extractMin();    // (costo, vértice)
-void decreaseKey(int v, double key);   // compara claves en forma estricta (x.key < padre.key)
+void decreaseKey(int v, double key);   // compara con el orden total (clave, vértice)
 bool empty() const;
-bool contiene(int v) const;            // v ∈ Q (línea 9 de Prim)
 int64_t ops;                           // intercambios (binomial) o todos los cortes (Fibonacci) en decreaseKey
 int64_t opsCascada;                    // solo cortes en cascada (Fibonacci); 0 en las otras colas
 static constexpr bool implementada;    // poner en true cuando la cola pase los tests
@@ -49,6 +48,10 @@ static size_t bytesPorNodo();          // para la estimación de memoria
 
 Para terminar una cola basta con implementar esos métodos en su archivo y cambiar
 `implementada` a `true`. No hay que tocar `prim.h`, `main.cpp` ni los tests.
+
+La condición "u ∈ Q" (línea 9 de Prim) la decide Prim con su propio arreglo
+auxiliar `enQ`, que no está en el pseudocódigo y es extra respecto a los arreglos
+de la sección 6.2 (`./prim --memoria` lo muestra en una línea aparte).
 
 ### Flujo de datos
 
@@ -190,11 +193,11 @@ figuras/            PNG y tablas generados por graficos.py
    transforma la lista en CSR. El peso se obtiene de `Aleatorio::peso`.
 2. `prim<Cola>` sigue el pseudocódigo línea a línea: inicializa costos y parent,
    construye Q con `construir` (n inserciones), extrae el mínimo, agrega
-   (parent[v], v) a T y reduce la clave de cada vecino u ∈ Q (`Q.contiene(u)`)
+   (parent[v], v) a T y reduce la clave de cada vecino u ∈ Q (arreglo auxiliar `enQ`)
    que mejora su conexión con el árbol.
 3. `ColaBinomial::insert` une árboles de igual grado mediante acarreos;
    `extractMin` promueve los hijos del mínimo; `decreaseKey` intercambia
-   contenido con el padre mientras su clave sea estrictamente menor y actualiza `nodoDe`.
+   contenido con el padre mientras sea menor en el orden (clave, vértice) y actualiza `nodoDe`.
 4. `ColaFibonacci::insert` añade una raíz; `extractMin` consolida raíces
    del mismo grado; `decreaseKey` aplica `cortar` y `corteCascada`.
 5. `main.cpp` ejecuta las cuatro series con semillas reproducibles, guarda

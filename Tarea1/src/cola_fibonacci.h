@@ -68,29 +68,22 @@ public:
         return resultado;
     }
 
-    /**
-     * Entrada: v presente y key <= clave; corta si viola el orden y propaga cortes.
-     * Compara solo claves y en forma estricta (línea 3 de decreaseKey-Fibonacci).
-     * El mínimo solo se actualiza si x es raíz: con claves iguales x no se corta
-     * y queda como hijo, así que no puede ser el mínimo de la lista de raíces.
-     */
+    /** Entrada: v presente y key <= clave; corta si viola el orden y propaga cortes. */
     void decreaseKey(int v, double key) {
         if (v < 0 || v >= static_cast<int>(nodoDe.size()) || !nodoDe[v] || key > nodoDe[v]->clave)
             throw std::invalid_argument("decreaseKey: vertice ausente o aumento de clave");
         NodoFibonacci* x = nodoDe[v];
         x->clave = key;
         NodoFibonacci* p = x->padre;
-        if (p && x->clave < p->clave) {
+        if (p && menor(x, p)) {
             cortar(x, p);
             corteCascada(p);
         }
-        if (x->padre == nullptr && menor(x, minimo)) minimo = x;
+        if (menor(x, minimo)) minimo = x;
     }
 
     /** Salida: true si la cola no contiene nodos. */
     bool empty() const { return tam == 0; }
-    /** Entrada: vértice v en 0..n-1. Salida: true si v todavía está en la cola. */
-    bool contiene(int v) const { return nodoDe[v] != nullptr; }
     /** Salida: bytes de un nodo, excluido nodoDe. */
     static size_t bytesPorNodo() { return sizeof(NodoFibonacci); }
 
@@ -99,7 +92,7 @@ private:
     NodoFibonacci* minimo = nullptr;
     int tam = 0;
 
-    /** Orden total para empates reproducibles (elección del mínimo y enlaces). */
+    /** Orden total para empates reproducibles. */
     static bool menor(const NodoFibonacci* a, const NodoFibonacci* b) {
         return a->clave < b->clave || (a->clave == b->clave && a->vertice < b->vertice);
     }
@@ -167,7 +160,7 @@ private:
         agregarRaiz(x);
         ++ops;
     }
-    /** Marca al primer ancestro que pierde un hijo; corta los ya marcados (cuenta en opsCascada). */
+    /** Marca al primer ancestro que pierde un hijo; corta los ya marcados. */
     void corteCascada(NodoFibonacci* x) {
         NodoFibonacci* p = x->padre;
         if (!p) return;

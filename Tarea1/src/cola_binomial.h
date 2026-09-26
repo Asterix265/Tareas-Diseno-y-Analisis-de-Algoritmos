@@ -80,17 +80,13 @@ public:
         return resultado;
     }
 
-    /**
-     * Entrada: v presente y key <= clave actual. Sube contenido y repara nodoDe.
-     * Compara solo claves y en forma estricta (línea 3 de decreaseKey-Binomial):
-     * con claves iguales no hay intercambio.
-     */
+    /** Entrada: v presente y key <= clave actual. Sube contenido y repara nodoDe. */
     void decreaseKey(int v, double key) {
         if (v < 0 || v >= static_cast<int>(nodoDe.size()) || !nodoDe[v] || key > nodoDe[v]->clave)
             throw std::invalid_argument("decreaseKey: vertice ausente o aumento de clave");
         NodoBinomial* x = nodoDe[v];
         x->clave = key;
-        while (x->padre && x->clave < x->padre->clave) {
+        while (x->padre && menor(x, x->padre)) {
             NodoBinomial* p = x->padre;
             std::swap(x->clave, p->clave);
             std::swap(x->vertice, p->vertice);
@@ -104,8 +100,6 @@ public:
 
     /** Salida: true si la cola está vacía. */
     bool empty() const { return tam == 0; }
-    /** Entrada: vértice v en 0..n-1. Salida: true si v todavía está en la cola. */
-    bool contiene(int v) const { return nodoDe[v] != nullptr; }
     /** Salida: memoria de un nodo, excluido nodoDe. */
     static size_t bytesPorNodo() { return sizeof(NodoBinomial); }
 
@@ -115,7 +109,7 @@ private:
     NodoBinomial* minimo = nullptr;
     int tam = 0;
 
-    /** Orden total para resolver empates de manera reproducible (elección del mínimo y enlaces). */
+    /** Orden total para resolver empates de manera reproducible. */
     static bool menor(const NodoBinomial* a, const NodoBinomial* b) {
         return a->clave < b->clave || (a->clave == b->clave && a->vertice < b->vertice);
     }

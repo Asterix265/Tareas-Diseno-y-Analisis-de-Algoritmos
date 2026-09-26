@@ -8,8 +8,9 @@
  *
  * `Cola` debe cumplir la interfaz de docs/ACUERDOS.md (ColaBinomial,
  * ColaFibonacci o ColaFalsa). Prim no sabe nada de nodos: solo usa
- * insert / extractMin / decreaseKey / empty / contiene y los contadores
- * `ops` y `opsCascada`.
+ * insert / extractMin / decreaseKey / empty y los contadores `ops` y
+ * `opsCascada`. La condición "u ∈ Q" de la línea 9 se decide con el arreglo
+ * auxiliar enQ, que no está en el pseudocódigo.
  */
 #include <chrono>
 #include <cstdint>
@@ -86,6 +87,7 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
 
     std::vector<double> costos(static_cast<size_t>(n));
     std::vector<int> parent(static_cast<size_t>(n));
+    std::vector<char> enQ(static_cast<size_t>(n), 1);  // auxiliar para 'u ∈ Q', no está en el pseudocódigo
     // 1: costos[r] ← 0, parent[r] ← −1
     costos[r] = 0.0;
     parent[r] = -1;
@@ -109,6 +111,7 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
             const std::pair<double, int> cv = Q.extractMin();
             const double c = cv.first;
             const int v = cv.second;
+            enQ[v] = 0;  // v ya no está en Q (auxiliar de la línea 9)
             // 8: if v ≠ r: T ← T ∪ {(parent[v], v)}
             if (v != r) {
                 T.push_back({parent[v], v});
@@ -117,7 +120,7 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
             // 9: for u ∈ vecinos(v) tal que u ∈ Q:
             for (int64_t k = g.inicio[v]; k < g.inicio[v + 1]; ++k) {
                 const int u = g.destino[k];
-                if (!Q.contiene(u)) continue;
+                if (!enQ[u]) continue;
                 const double w = g.peso[k];  // w(v, u)
                 // 10: if w(v, u) < costos[u]:
                 if (w < costos[u]) {

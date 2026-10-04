@@ -1,13 +1,11 @@
 #pragma once
 /**
- * prim.h — Algoritmo de Prim genérico sobre la cola de prioridad (sección 4.1).
+ * prim.h — Algoritmo de Prim genérico sobre la cola de prioridad .
  *
- * Traducción línea a línea de Prim(G, r) del enunciado: cada bloque lleva el
- * número de línea del pseudocódigo. Lo que no pertenece al pseudocódigo
- * (medición de tiempo y contadores) está marcado como [medición].
+ * Traducción línea a línea de Prim(G, r) del enunciado: Copiamos el pseudocodigo textual,
+  añadiendo las mediciones  pertinentes.
  *
- * `Cola` debe cumplir la interfaz de docs/ACUERDOS.md (ColaBinomial,
- * ColaFibonacci o ColaFalsa). Prim no sabe nada de nodos: solo usa
+ * Prim no sabe nada de nodos: solo usa
  * insert / extractMin / decreaseKey / empty / contiene y los contadores
  * `ops` y `opsCascada`.
  */
@@ -55,20 +53,22 @@ void construir(Cola& Q, const std::vector<double>& costos) {
     for (int v = 0; v < static_cast<int>(costos.size()); ++v) Q.insert(v, costos[v]);
 }
 
+
+
 /**
  * Prim(G, r): MST del grafo conexo g partiendo desde el vértice r.
  * Entrada:
- *   g        grafo conexo.
+ *   g        grafo.
  *   r        vértice raíz.
  *   medirDK  si es true, mide el tiempo de cada decreaseKey (series C y D).
  *            En las series A y B va en false para no sumar el costo del reloj.
  *   cadaK    si > 0 y medirDK, guarda un PuntoCurva cada cadaK llamadas
  *            (cadaK = 1: un punto por llamada; main.cpp lo reduce después).
- *            main.cpp solo lo usa en una ejecución extra para la curva, nunca
- *            en las 10 repeticiones medidas. El push_back ocurre fuera del
+ *            main.cpp solo lo usa en una ejecución extra para la curva. 
+            El push_back ocurre fuera del
  *            intervalo medido de decreaseKey, y se reservan g.m / cadaK + 1
  *            puntos: cada arista provoca a lo sumo un decreaseKey, así que el
- *            vector nunca se realoca durante Prim.
+ *            vector no se realoca durante Prim.
  * Salida: ResultadoPrim con T, su peso y las mediciones. El tiempo total cubre
  *         las líneas 1 a 14; no incluye generar el grafo ni destruir Q.
  */
@@ -130,7 +130,7 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
                         const auto a = Reloj::now();
                         Q.decreaseKey(u, w);
                         const auto b = Reloj::now();
-                        // Desde aquí ya no se mide: acumular y guardar la curva no suma a dkTiempoNs.
+                        // desde acá acumular y guardar la curva no suma a dkTiempoNs.
                         res.dkTiempoNs += std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count();
                         ++res.dkLlamadas;
                         if (cadaK > 0 && res.dkLlamadas % cadaK == 0)
@@ -142,7 +142,7 @@ ResultadoPrim prim(const Grafo& g, int r = 0, bool medirDK = false, int64_t cada
                 }
             }
         }
-        t1 = Reloj::now();  // [medición] antes de destruir Q: liberar memoria no es parte de Prim
+        t1 = Reloj::now();  // medimos antes de destruir Q
         res.dkOps = Q.ops;
         res.dkOpsCascada = Q.opsCascada;
         // 14: return T

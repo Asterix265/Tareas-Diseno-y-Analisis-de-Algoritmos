@@ -4,7 +4,7 @@
  *
  * Solo para desarrollo y tests: permite probar Prim, el generador y el main
  * antes de que existan las colas reales. extractMin es O(n), así que NO se
- * usa en los experimentos. Cumple exactamente la interfaz de docs/ACUERDOS.md.
+ * usa en los experimentos. Cumple exactamente la interfaz descrita en README.md.
  */
 #include <cstddef>
 #include <cstdint>

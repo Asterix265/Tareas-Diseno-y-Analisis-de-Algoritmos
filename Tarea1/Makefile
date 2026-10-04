@@ -1,5 +1,4 @@
 # Uso: make (compila todo) | make test | make rapido | make memoria | make clean
-# En Windows sin make, usar los comandos g++ del README.
 CXX      ?= g++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra
 HDRS     := $(wildcard src/*.h)

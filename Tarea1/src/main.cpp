@@ -1,13 +1,5 @@
 /**
- * main.cpp — Ejecuta toda la batería de experimentos (sección 6) sin modificar código.
- *
- * Uso (desde Tarea1/):
- *   ./prim                         # todo: series A B C D, 10 repeticiones, binomial y fibonacci
- *   ./prim --series AB --reps 3    # subconjunto
- *   ./prim --reducir 4             # i-=4, j-=4: prueba rápida en un notebook
- *   ./prim --colas falsa --reducir 10
- *   ./prim --memoria               # solo imprime la estimación de memoria (6.2)
- *   ./prim --calibrar              # solo mide el costo de steady_clock::now() (10^6 llamadas)
+ * main.cpp — Ejecuta toda los experimentos.
  *
  * Salida (carpeta --salida, por defecto resultados/), un archivo por invocación:
  *   tiempos_<series>.csv       una fila por (configuración, repetición, cola)
@@ -43,13 +35,13 @@
 
 /** Una configuración (i, j) de una serie: v = 2^i, e = 2^j. */
 struct Config {
-    char serie;  // 'A', 'B', 'C' o 'D' (sección 6.3)
+    char serie;  // 'A', 'B', 'C' o 'D' 
     int i, j;
 };
 
 /**
- * Series de la sección 6.3. A y B: costo total. C y D: costo amortizado.
- * Entrada: series, letras de las series a correr (p. ej. "ABCD"); una letra desconocida termina el programa.
+ * Series  A y B: costo total. C y D: costo amortizado.
+ * Entrada: series, letras de las series a correr (por ejemplo "ABCD"); una letra desconocida termina el programa.
  * Salida: las configuraciones (serie, i, j) de esas series, en el orden pedido.
  */
 static std::vector<Config> configuraciones(const std::string& series) {
@@ -67,7 +59,7 @@ static std::vector<Config> configuraciones(const std::string& series) {
 }
 
 /**
- * Semilla determinista por (serie, i, j, rep): cualquier corrida se puede repetir.
+ * Semilla determinista por (serie, i, j, rep).
  * Entrada: base (--semilla), configuración c (sin --reducir) y repetición rep (< 100).
  * Salida: base + serie·10^6 + i·10^4 + j·100 + rep.
  */
@@ -77,7 +69,7 @@ static uint32_t semilla(uint32_t base, const Config& c, int rep) {
 
 /**
  * Ejecuta Prim con la cola indicada por nombre, desde la raíz 0.
- * Entrada: cola ("binomial", "fibonacci" o "falsa"), grafo g, medirDK y cadaK (ver prim en prim.h).
+ * Entrada: cola ("binomial", "fibonacci" o "falsa"), grafo g, medirDK y cadaK 
  * Salida: el ResultadoPrim de esa ejecución. Lanza invalid_argument si la cola no existe.
  */
 static ResultadoPrim ejecutar(const std::string& cola, const Grafo& g, bool medirDK, int64_t cadaK) {
@@ -92,7 +84,7 @@ static constexpr size_t PUNTOS_CURVA = 4096;
 
 /**
  * Reduce una curva con un punto por llamada a `puntos` puntos espaciados
- * uniformemente según la cantidad real de llamadas (el último siempre se incluye).
+ * uniformemente según la cantidad real de llamadas.
  * Entrada: curva completa y cantidad deseada. Salida: curva reducida.
  */
 static std::vector<PuntoCurva> reducirCurva(const std::vector<PuntoCurva>& curva, size_t puntos) {

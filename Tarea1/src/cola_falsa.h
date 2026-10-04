@@ -1,11 +1,4 @@
 #pragma once
-/**
- * cola_falsa.h — Cola de prioridad TRIVIAL (arreglo + búsqueda lineal).
- *
- * Solo para desarrollo y tests: permite probar Prim, el generador y el main
- * antes de que existan las colas reales. extractMin es O(n), así que NO se
- * usa en los experimentos. Cumple exactamente la interfaz descrita en README.md.
- */
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -13,29 +6,26 @@
 #include <utility>
 #include <vector>
 
+/** Guarda claves por vértice y encuentra el mínimo mediante búsqueda lineal. */
 class ColaFalsa {
 public:
-    /** Nombre con que main.cpp y los CSV identifican esta cola (--colas falsa). */
     static constexpr const char* nombre = "falsa";
-    /** true: la cola participa en los tests y en ./prim (false = se omite con un aviso). */
     static constexpr bool implementada = true;
 
-    /** Contador de operaciones estructurales en decreaseKey (aquí siempre 0). */
-    int64_t ops = 0;
-    /** Contador de cortes en cascada (aquí siempre 0). */
-    int64_t opsCascada = 0;
+    int64_t ops = 0;         // No realiza intercambios ni cortes.
+    int64_t opsCascada = 0;  // No realiza cortes en cascada.
 
-    /** Entrada: n = |V|. Reserva espacio para los vértices 0..n-1. */
+    /** Prepara una cola vacía para los vértices 0..n-1. */
     explicit ColaFalsa(int n) : clave(n, std::numeric_limits<double>::infinity()), presente(n, 0) {}
 
-    /** Inserta el vértice v con costo key. */
+    /** Inserta el vértice v con el costo key. */
     void insert(int v, double key) {
         clave[v] = key;
         presente[v] = 1;
         ++tam;
     }
 
-    /** Extrae y retorna el par (costo, vértice) de menor costo. Empates: menor vértice. */
+    /** Busca, elimina y devuelve el par (costo, vértice) mínimo. */
     std::pair<double, int> extractMin() {
         if (tam == 0) throw std::logic_error("extractMin sobre cola vacia");
         int mejor = -1;
@@ -46,20 +36,20 @@ public:
         return {clave[mejor], mejor};
     }
 
-    /** Reduce el costo del vértice v a key (key <= costo actual). */
+    /** Actualiza el costo del vértice v con la nueva clave key. */
     void decreaseKey(int v, double key) { clave[v] = key; }
 
-    /** Salida: true si la cola no tiene elementos. */
+    /** Indica si la cola está vacía. */
     bool empty() const { return tam == 0; }
 
-    /** Entrada: vértice v en 0..n-1. Salida: true si v todavía está en la cola. */
+    /** Indica si el vértice v sigue presente en la cola. */
     bool contiene(int v) const { return presente[v] != 0; }
 
-    /** Bytes por elemento almacenado (para la estimación de memoria). */
+    /** Devuelve los bytes usados por clave y presencia de un vértice. */
     static size_t bytesPorNodo() { return sizeof(double) + sizeof(char); }
 
 private:
-    std::vector<double> clave;
-    std::vector<char> presente;
-    int tam = 0;
+    std::vector<double> clave;  // Costo guardado para cada vértice.
+    std::vector<char> presente; // Indica qué vértices siguen en la cola.
+    int tam = 0;                // Cantidad de vértices presentes.
 };

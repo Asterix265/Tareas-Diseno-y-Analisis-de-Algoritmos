@@ -1,11 +1,4 @@
-/**
- * tests.cpp — Pruebas de corrección en grafos chicos (recomendación 8b y 8c).
- *
- * Compilar y correr desde Tarea1/:
- *   g++ -std=c++17 -O2 -Wall -Wextra -Isrc -o tests_bin tests/tests.cpp && ./tests_bin
- *
- * Las pruebas de una cola se omiten mientras su `implementada` sea false.
- */
+/** Comprueba el generador, las colas de prioridad y el resultado de Prim. */
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -28,17 +21,14 @@
 #include "prim.h"
 
 static int fallas = 0, pruebas = 0;
-/**
- * Registra una prueba. Entrada: condición `cond` y mensaje `msg` (se puede
- * encadenar con <<). Salida: si cond es falsa, cuenta una falla e imprime msg en stderr.
- */
+/** Registra una condición de prueba e imprime el mensaje si falla. */
 #define REVISAR(cond, msg)                                                  \
     do {                                                                    \
         ++pruebas;                                                          \
         if (!(cond)) { ++fallas; std::cerr << "  FALLA: " << msg << "\n"; } \
     } while (0)
 
-/** Construye un Grafo CSR a partir de una lista de aristas (solo para tests). */
+/** Construye un grafo CSR con n vértices a partir de la lista de aristas recibida. */
 static Grafo desdeAristas(int n, const std::vector<std::tuple<int, int, double>>& as) {
     Grafo g;
     g.n = n;
@@ -56,10 +46,7 @@ static Grafo desdeAristas(int n, const std::vector<std::tuple<int, int, double>>
     return g;
 }
 
-/**
- * Kruskal con union-find: MST de referencia, independiente de las colas.
- * Entrada: grafo conexo g. Salida: peso total del MST.
- */
+/** Calcula con Kruskal el peso del MST de un grafo conexo. */
 static double kruskal(const Grafo& g) {
     std::vector<std::tuple<double, int, int>> as;
     for (int u = 0; u < g.n; ++u)
@@ -77,27 +64,18 @@ static double kruskal(const Grafo& g) {
     return total;
 }
 
-/**
- * Compara dos pesos con la misma tolerancia que main.cpp.
- * Entrada: a, b. Salida: true si |a − b| <= 1e-9 · max(1, |b|).
- */
+/** Indica si los pesos a y b difieren dentro de la tolerancia numérica. */
 static bool cerca(double a, double b) { return std::fabs(a - b) <= 1e-9 * std::max(1.0, std::fabs(b)); }
 
-/**
- * Busca la arista {a,b} en la lista de adyacencia de a.
- * Entrada: grafo g y extremos a, b. Salida: w(a,b), o -1 si la arista no existe.
- */
+/** Busca la arista entre a y b en g y devuelve su peso, o -1 si no existe. */
 static double pesoArista(const Grafo& g, int a, int b) {
     for (int64_t k = g.inicio[a]; k < g.inicio[a + 1]; ++k)
         if (g.destino[k] == b) return g.peso[k];
     return -1.0;
 }
 
-/**
- * Revisa el resultado de Prim: T tiene |V| − 1 aristas del grafo, la suma de
- * sus pesos es pesoTotal y dk_ops_cascada <= dk_ops.
- * Entrada: grafo g, resultado r de prim sobre g, y texto del caso para los mensajes.
- * Salida: registra las pruebas con REVISAR.
+/** Comprueba las aristas, el peso y los contadores del resultado r sobre g.
+ *  Usa caso para identificar las verificaciones registradas.
  */
 static void revisarT(const Grafo& g, const ResultadoPrim& r, const std::string& caso) {
     REVISAR(static_cast<int64_t>(r.T.size()) == g.n - 1, caso << ": T con |V|-1 aristas");
@@ -113,7 +91,7 @@ static void revisarT(const Grafo& g, const ResultadoPrim& r, const std::string& 
     REVISAR(r.dkOpsCascada <= r.dkOps, caso << ": dk_ops_cascada <= dk_ops");
 }
 
-/** Revisa que el grafo sea simple, conexo, con e aristas y pesos en (0,1]. */
+/** Prueba que el generador entregue grafos simples, conexos y reproducibles. */
 static void probarGenerador() {
     std::cout << "Generador\n";
     const int casos[][2] = {{4, 4}, {4, 6}, {6, 8}, {10, 10}, {10, 12}, {12, 16}, {14, 18}};
@@ -148,17 +126,12 @@ static void probarGenerador() {
     }
     Grafo a = generarGrafo(256, 1000, 42), b = generarGrafo(256, 1000, 42);
     REVISAR(a.destino == b.destino && a.peso == b.peso, "misma semilla => mismo grafo");
-    // Huella para comparar entre Windows / Mac / servidor: debe imprimir lo mismo en los tres.
     double suma = std::accumulate(a.peso.begin(), a.peso.end(), 0.0);
     std::cout << "  huella (semilla 42): destino[0..2]=" << a.destino[0] << "," << a.destino[1] << ","
               << a.destino[2] << "  suma pesos=" << std::setprecision(15) << suma << "\n";
 }
 
-/**
- * Secuencia aleatoria de operaciones comparada contra ColaFalsa; también
- * revisa contiene() de ambas colas después de cada extracción.
- * Entrada: tipo Cola (plantilla). Salida: registra las pruebas con REVISAR.
- */
+/** Compara inserciones, reducciones y extracciones de Cola con ColaFalsa. */
 template <class Cola>
 static void probarCola() {
     std::cout << "Cola " << Cola::nombre << "\n";
@@ -179,7 +152,7 @@ static void probarCola() {
             if (!q.contiene(v) || !ref.contiene(v)) contieneOk = false;
         int quedan = n;
         while (quedan > 0 && ok) {
-            for (int t = 0; t < 3; ++t) {  // algunos decreaseKey entre extracciones
+            for (int t = 0; t < 3; ++t) {
                 int v = static_cast<int>(rng.enRango(n));
                 if (!dentro[v]) continue;
                 clave[v] *= rng.peso();
@@ -188,7 +161,7 @@ static void probarCola() {
             }
             auto a = q.extractMin();
             auto b = ref.extractMin();
-            if (a.first != b.first) ok = false;  // el vértice puede diferir si hay empates
+            if (a.first != b.first) ok = false;
             dentro[a.second] = 0;
             dentroRef[b.second] = 0;
             --quedan;
@@ -200,7 +173,7 @@ static void probarCola() {
     }
 }
 
-/** Provoca pérdidas de hijos desde las hojas para comprobar cortes en cascada. */
+/** Fuerza cortes en cascada y comprueba los contadores y el orden de extracción. */
 static void probarCortesCascada() {
     ColaFibonacci q(128);
     for (int v = 0; v < 128; ++v) q.insert(v, static_cast<double>(v));
@@ -218,14 +191,13 @@ static void probarCortesCascada() {
     REVISAR(q.empty(), "Fibonacci vacía después de todos los cortes");
 }
 
-/** Prim con la cola dada contra Kruskal, en un grafo a mano y en grafos aleatorios. */
+/** Compara Prim con la cola indicada contra un MST conocido y contra Kruskal. */
 template <class Cola>
 static void probarPrim() {
     std::cout << "Prim con cola " << Cola::nombre << "\n";
     if (!Cola::implementada) { std::cout << "  (omitida: implementada = false)\n"; return; }
 
-    // Grafo a mano (10 vértices). MST: camino 0-1-...-9,
-    // pesos 0.1+0.2+0.15+0.3+0.25+0.05+0.12+0.08+0.04 = 1.29.
+    // El MST del grafo de diez vértices es el camino 0-1-...-9, de peso 1.29.
     Grafo mano = desdeAristas(10, {{0, 1, 0.1}, {1, 2, 0.2}, {2, 3, 0.15}, {3, 4, 0.3},
                                    {4, 5, 0.25}, {5, 6, 0.05}, {6, 7, 0.12}, {7, 8, 0.08},
                                    {8, 9, 0.04}, {0, 2, 0.9}, {1, 3, 0.8}, {2, 4, 0.7},
@@ -244,7 +216,7 @@ static void probarPrim() {
     }
 }
 
-/** Corre todas las pruebas. Salida: resumen por stdout; código 0 si no hubo fallas, 1 si las hubo. */
+/** Ejecuta todas las pruebas, imprime el resumen y devuelve 0 si pasan todas. */
 int main() {
     probarGenerador();
     probarCola<ColaBinomial>();

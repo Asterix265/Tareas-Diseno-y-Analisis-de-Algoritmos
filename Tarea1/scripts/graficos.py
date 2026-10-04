@@ -1,32 +1,5 @@
 #!/usr/bin/env python3
-"""
-graficos.py — Genera los 12 gráficos y las tablas a partir de los CSV de ./prim.
-
-Uso (desde Tarea1/):
-    python3 scripts/graficos.py                      # lee resultados/tiempos_*.csv (sin los _red)
-    python3 scripts/graficos.py --reducidos          # incluye corridas con --reducir (pruebas)
-    python3 scripts/graficos.py --entrada dir --salida figuras
-
-Requiere: matplotlib (pip install matplotlib).
-
-Gráficos:
-  Series A y B (costo total), 4 gráficos: tiempo total vs e (A) o v (B), por cola.
-  Series C y D (costo amortizado), 8 gráficos: tiempo acumulado de decreaseKey
-  y conteo de operaciones vs cantidad de llamadas, por cola. El conteo usa
-  intercambios en la binomial (dk_ops) y cortes en cascada en Fibonacci
-  (dk_ops_cascada), como dice la sección 6.3.2 b) del enunciado.
-Cada gráfico incluye la cota teórica multiplicada por la constante c que mejor
-ajusta por mínimos cuadrados (c = sum(y*f) / sum(f^2)). Gráficos de una misma
-serie y medida comparten escala (mismo eje y) para comparar ambas colas.
-
-Tablas (en la carpeta de salida y en markdown por stdout):
-  tabla_tiempos.{csv,tex}         series A y B: promedio ± desviación estándar del tiempo total.
-  tabla_tiempos_reps.{csv,tex}    anexo, series A y B: el tiempo de cada repetición y el promedio.
-  tabla_amortizado.{csv,tex}      series C y D: promedio ± desviación estándar de dk_llamadas,
-                                  tiempo de decreaseKey, dk_ops y dk_ops_cascada, más
-                                  dk_ops, dk_ops_cascada y ns por llamada.
-  constantes.csv                  la constante c ajustada de cada uno de los 12 gráficos.
-"""
+"""Genera gráficos y tablas a partir de los CSV de mediciones de Prim."""
 import argparse
 import csv
 import glob
@@ -43,37 +16,30 @@ import matplotlib.pyplot as plt  # noqa: E402
 COLOR_MEDIDO = "#2a5caa"
 COLOR_COTA = "#8a8a8a"
 
-# Cotas teóricas: f(v, e) para el costo total y f(v, k) para decreaseKey (k = llamadas).
-# Cada una: (función, leyenda LaTeX del gráfico, texto plano para constantes.csv).
+# Cada entrada guarda la función teórica, su leyenda y su nombre para el CSV.
 COTAS_TOTAL = {
     "binomial": (lambda v, e: e * math.log2(v), r"$c \cdot e \log v$", "e*log2(v)"),
     "fibonacci": (lambda v, e: e + v * math.log2(v), r"$c \cdot (e + v \log v)$", "e + v*log2(v)"),
 }
-COTAS_DK = {  # costo acumulado de decreaseKey en función de la cantidad de llamadas k
+COTAS_DK = {
     "binomial": (lambda v, k: k * math.log2(v), r"$c \cdot k \log v$", "k*log2(v)"),
     "fibonacci": (lambda v, k: k, r"$c \cdot k$  (O(1) amortizado)", "k"),
 }
 
-# Contador de operaciones que se grafica para cada cola (sección 6.3.2 b)
+# Selecciona el contador estructural que se muestra para cada cola.
 OPS_GRAFICO = {"binomial": "dk_ops", "fibonacci": "dk_ops_cascada"}
-# Rótulo del eje y de los gráficos de operaciones, por cola
 YLABEL_OPS = {"binomial": "intercambios", "fibonacci": "cortes en cascada"}
-# Nombre de cada cola en los títulos
 NOMBRE_COLA = {"binomial": "Binomial", "fibonacci": "Fibonacci"}
 
+# Campos que leer() convierte a int y float, respectivamente.
 ENTEROS = ("i", "j", "v", "e", "rep", "dk_llamadas", "dk_tiempo_ns", "dk_ops", "dk_ops_cascada")
 REALES = ("tiempo_ms", "peso_mst")
 
 
 def leer(entrada, reducidos):
-    """Lee todos los tiempos_*.csv de una carpeta.
+    """Lee los CSV de entrada y devuelve sus filas con valores numéricos convertidos.
 
-    Entrada: entrada, carpeta con los CSV; reducidos, si es True incluye los
-    archivos *_red*.csv (corridas con --reducir).
-    Salida: lista de dicts, una por fila, con i, j, v, e, rep y los contadores
-    como int y tiempo_ms, peso_mst como float.
-    Termina con un error si la misma fila (serie, i, j, rep, cola) aparece más
-    de una vez, porque se contaría dos veces en los promedios.
+    Incluye los archivos de pruebas reducidas solo cuando reducidos es verdadero.
     """
     filas = []
     vistas = {}
@@ -98,10 +64,7 @@ def leer(entrada, reducidos):
 def agrupar(filas):
     """Agrupa las filas por configuración y cola.
 
-    Entrada: filas, lista de dicts de leer().
-    Salida: dict (serie, i, j, cola) -> dict con v, e, n (repeticiones) y, para
-    tiempo_ms, dk_llamadas, dk_tiempo_ms, dk_ops y dk_ops_cascada, el promedio
-    (clave sin sufijo) y la desviación estándar (sufijo _sd; 0 si hay una sola repetición).
+    Recibe las mediciones y devuelve sus promedios y desviaciones estándar por grupo.
     """
     g = defaultdict(list)
     for r in filas:
@@ -126,21 +89,13 @@ def agrupar(filas):
 
 
 def ajustar(ys, fs):
-    """Constante de la cota por mínimos cuadrados.
-
-    Entrada: ys, valores medidos; fs, valores de la cota sin constante (mismo largo).
-    Salida: c que minimiza sum (y - c f)^2, es decir sum(y f) / sum(f^2); 0 si todas las f son 0.
-    """
+    """Ajusta por mínimos cuadrados una constante a los valores medidos ys y teóricos fs."""
     den = sum(f * f for f in fs)
     return sum(y * f for y, f in zip(ys, fs)) / den if den else 0.0
 
 
 def estilo(ax, xlabel, ylabel, titulo):
-    """Aplica etiquetas, título, grilla y leyenda comunes a un gráfico.
-
-    Entrada: ax, ejes de matplotlib; xlabel, ylabel y titulo, textos.
-    Salida: ninguna (modifica ax).
-    """
+    """Añade etiquetas, título, grilla y leyenda a los ejes ax usando los textos recibidos."""
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(titulo, fontsize=11)
@@ -151,25 +106,16 @@ def estilo(ax, xlabel, ylabel, titulo):
 
 
 def serie_datos(agr, serie, cola, xkey):
-    """Puntos de una serie y una cola, ordenados por x.
-
-    Entrada: agr, salida de agrupar(); serie ("A".."D"); cola; xkey, clave que
-    se usa como eje x ("e", "v" o "dk_llamadas").
-    Salida: lista de pares ((serie, i, j, cola), datos) ordenada por datos[xkey].
-    """
+    """Selecciona de agr los puntos de una serie y cola, y los ordena por xkey."""
     pts = [(k, d) for k, d in agr.items() if k[0] == serie and k[3] == cola]
     pts.sort(key=lambda kd: kd[1][xkey])
     return pts
 
 
 def graficar(salida, nombre, xs, ys, sds, cota_ys, cota_label, c, xlabel, ylabel, titulo, ylim, log2x):
-    """Dibuja un gráfico de línea (medido ± desviación estándar y cota) y lo guarda en PNG.
+    """Dibuja los valores medidos, sus desviaciones y la curva teórica recibidos.
 
-    Entrada: salida, carpeta; nombre, archivo PNG; xs, ys y sds, eje x, promedios
-    y desviaciones estándar; cota_ys, cota ya multiplicada por c; cota_label,
-    leyenda de la cota; c, constante ajustada; xlabel, ylabel y titulo, textos;
-    ylim, límite superior del eje y (común a la serie); log2x, si el eje x va en escala log2.
-    Salida: ninguna; escribe salida/nombre e imprime su ruta.
+    Guarda el gráfico PNG en salida/nombre e imprime esa ruta.
     """
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.errorbar(xs, ys, yerr=sds, color=COLOR_MEDIDO, linewidth=2, marker="o", markersize=5,
@@ -188,16 +134,14 @@ def graficar(salida, nombre, xs, ys, sds, cota_ys, cota_label, c, xlabel, ylabel
 
 
 def nombre_cola(cola):
-    """Entrada: nombre interno de una cola. Salida: nombre para títulos ("Binomial", "Fibonacci")."""
+    """Convierte el nombre interno de cola en el nombre mostrado en los títulos."""
     return NOMBRE_COLA.get(cola, cola.capitalize())
 
 
 def graficos_total(agr, colas, salida):
-    """Los 4 gráficos de costo total (sección 6.3.1): series A y B, una figura por cola.
+    """Genera en salida los gráficos de tiempo total de las series A y B.
 
-    Entrada: agr, salida de agrupar(); colas, nombres de las colas presentes; salida, carpeta.
-    Salida: lista de filas (serie, medida, cola, cota, c) con la constante ajustada de cada
-    gráfico; escribe total_<cola>_serie<A|B>.png con la misma escala y por serie.
+    Recibe los datos agrupados y las colas disponibles; devuelve las constantes ajustadas.
     """
     constantes = []
     for serie, xkey, xlabel in (("A", "e", "e (aristas), v fijo"), ("B", "v", "v (vértices), e fijo")):
@@ -225,13 +169,9 @@ def graficos_total(agr, colas, salida):
 
 
 def graficos_amortizado(agr, colas, salida):
-    """Los 8 gráficos de costo amortizado (sección 6.3.2): series C y D, tiempo y operaciones, por cola.
+    """Genera en salida los gráficos de tiempo y operaciones de las series C y D.
 
-    Entrada: agr, salida de agrupar(); colas, nombres de las colas presentes; salida, carpeta.
-    Salida: lista de filas (serie, medida, cola, cota, c) con la constante ajustada de cada
-    gráfico; escribe dk_<tiempo|ops>_<cola>_serie<C|D>.png. En "ops" se grafica dk_ops en la
-    binomial (eje y "intercambios") y dk_ops_cascada en Fibonacci (eje y "cortes en cascada").
-    Misma escala y dentro de cada serie y medida.
+    Recibe los datos agrupados y las colas disponibles; devuelve las constantes ajustadas.
     """
     constantes = []
     for serie in ("C", "D"):
@@ -268,13 +208,7 @@ def graficos_amortizado(agr, colas, salida):
 
 
 def escribir_constantes(constantes, salida):
-    """Escribe las constantes c ajustadas de los 12 gráficos.
-
-    Entrada: constantes, lista de filas (serie, medida, cola, cota, c) de graficos_total()
-    y graficos_amortizado(); salida, carpeta.
-    Salida: ninguna; escribe constantes.csv (c con 6 cifras significativas) y la imprime.
-    Las unidades de c son las de la medida (ms u operaciones) divididas por las de la cota.
-    """
+    """Guarda las constantes ajustadas en salida/constantes.csv y las imprime como tabla."""
     if not constantes:
         return
     with open(os.path.join(salida, "constantes.csv"), "w", newline="") as f:
@@ -288,11 +222,7 @@ def escribir_constantes(constantes, salida):
 
 
 def tabla(agr, salida):
-    """Tabla de tiempos de las series A y B: promedio ± desviación estándar por configuración y cola.
-
-    Entrada: agr, salida de agrupar(); salida, carpeta.
-    Salida: ninguna; escribe tabla_tiempos.csv y tabla_tiempos.tex e imprime la tabla en markdown.
-    """
+    """Resume los tiempos de las series A y B de agr en tablas CSV, TeX y stdout."""
     filas = sorted((k, d) for k, d in agr.items() if k[0] in ("A", "B"))
     if not filas:
         return
@@ -312,11 +242,9 @@ def tabla(agr, salida):
 
 
 def anexo_repeticiones(filas, salida):
-    """Anexo de las series A y B: el tiempo total de cada repetición y el promedio.
+    """Genera el anexo de las series A y B con cada repetición y su promedio.
 
-    Entrada: filas, lista de dicts de leer(); salida, carpeta.
-    Salida: ninguna; escribe tabla_tiempos_reps.csv y tabla_tiempos_reps.tex e
-    imprime la tabla en markdown. Una repetición que falte queda en blanco.
+    Recibe las filas medidas y guarda las tablas en salida como CSV y TeX; también las imprime.
     """
     g = defaultdict(dict)
     for r in filas:
@@ -354,12 +282,7 @@ def anexo_repeticiones(filas, salida):
 
 
 def costo_reloj_ns(entrada):
-    """Costo de una llamada a steady_clock::now() medido con ./prim --calibrar.
-
-    Entrada: entrada, carpeta donde puede estar calibracion.txt.
-    Salida: el valor de la línea "Costo por llamada: X ns" como float, o None si el
-    archivo no existe o no tiene esa línea.
-    """
+    """Lee calibracion.txt de entrada y devuelve el costo del reloj en ns, o None si falta."""
     try:
         with open(os.path.join(entrada, "calibracion.txt")) as f:
             for linea in f:
@@ -371,21 +294,10 @@ def costo_reloj_ns(entrada):
 
 
 def tabla_amortizado(agr, salida, entrada):
-    """Tabla de las series C y D: promedio ± desviación estándar de las mediciones de decreaseKey.
+    """Resume las mediciones de decreaseKey de las series C y D.
 
-    Entrada: agr, salida de agrupar(); salida, carpeta; entrada, carpeta de los CSV
-    (de ahí se lee calibracion.txt para la nota del .tex).
-    Salida: ninguna; escribe tabla_amortizado.csv y tabla_amortizado.tex e imprime la
-    tabla en markdown. Columnas: dk_llamadas, tiempo acumulado de decreaseKey [ms],
-    dk_ops (intercambios / todos los cortes) y dk_ops_cascada (solo cortes en cascada),
-    más tres columnas por llamada, calculadas con los promedios de la misma fila:
-      dk_ops_por_llamada         = dk_ops / dk_llamadas
-                                   (binomial: intercambios; Fibonacci: cortes totales);
-      dk_ops_cascada_por_llamada = dk_ops_cascada / dk_llamadas
-                                   (binomial: 0; Fibonacci: cortes en cascada);
-      ns_por_llamada             = tiempo de decreaseKey [ns] / dk_llamadas.
-    El .tex va dentro de \\resizebox{\\textwidth}{!}{...} (requiere \\usepackage{graphicx})
-    y lleva una nota: ns_por_llamada incluye el costo del reloj (costo_reloj_ns).
+    Recibe los datos agrupados y las carpetas de datos y salida; genera tablas CSV y TeX,
+    además de imprimirlas en stdout.
     """
     filas = sorted((k, d) for k, d in agr.items() if k[0] in ("C", "D"))
     if not filas:
@@ -394,7 +306,7 @@ def tabla_amortizado(agr, salida, entrada):
                ("dk_ops_cascada", "{:.1f}"))
 
     def por_llamada(d):
-        """Salida: (dk_ops, dk_ops_cascada y ns por llamada) como texto; vacíos si no hubo llamadas."""
+        """Calcula operaciones y tiempo por llamada a partir de los promedios de d."""
         k = d["dk_llamadas"]
         if not k:
             return ["", "", ""]
@@ -435,11 +347,7 @@ def tabla_amortizado(agr, salida, entrada):
 
 
 def main():
-    """Lee los CSV, dibuja los 12 gráficos y escribe las tablas y las constantes ajustadas.
-
-    Entrada: opciones de línea de comandos --entrada, --salida y --reducidos.
-    Salida: ninguna; archivos en la carpeta de salida y tablas en markdown por stdout.
-    """
+    """Lee los argumentos y coordina la generación de gráficos, tablas y constantes."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--entrada", default="resultados")
     ap.add_argument("--salida", default="figuras")

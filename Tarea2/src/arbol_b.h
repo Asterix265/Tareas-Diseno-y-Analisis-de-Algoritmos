@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
 #include "datos.h"
 #include "disco.h"
 
@@ -21,6 +22,7 @@ static_assert(sizeof(NodoB) == 4096, "NodoB debe ocupar 4096 bytes");
 class ArbolB {
 public:
     static constexpr int b = 340;
+    using Nodo = NodoB;
 
     /** Salida: árbol con una hoja vacía en el bloque 0. */
     ArbolB() { disco_.agregar(NodoB{}); }

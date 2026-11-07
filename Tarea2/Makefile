@@ -18,3 +18,12 @@ clean:
 	rm -f experimento_b tests_bin prueba_arbol_b.bin
 
 .PHONY: all test clean
+
+# Árbol Bε (persona A): make test_be compila y corre sus pruebas.
+tests_be: tests/tests_be.cpp $(HDRS)
+	$(CXX) $(CXXFLAGS) -Isrc -o $@ tests/tests_be.cpp
+
+test_be: tests_be
+	./tests_be
+
+.PHONY: test_be

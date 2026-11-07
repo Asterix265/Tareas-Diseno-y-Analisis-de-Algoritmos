@@ -35,7 +35,7 @@
 
 /** Una configuración (i, j) de una serie: v = 2^i, e = 2^j. */
 struct Config {
-    char serie;  // 'A', 'B', 'C' o 'D' 
+    char serie;  // A,B,C,D
     int i, j;
 };
 
@@ -61,7 +61,7 @@ static std::vector<Config> configuraciones(const std::string& series) {
 /**
  * Semilla determinista por (serie, i, j, rep).
  * Entrada: base (--semilla), configuración c (sin --reducir) y repetición rep (< 100).
- * Salida: base + serie·10^6 + i·10^4 + j·100 + rep.
+ * Salida: base + serie*10^6 + i·10^4 + j*100 + rep.
  */
 static uint32_t semilla(uint32_t base, const Config& c, int rep) {
     return base + static_cast<uint32_t>((c.serie - 'A') * 1000000 + c.i * 10000 + c.j * 100 + rep);
@@ -98,7 +98,7 @@ static std::vector<PuntoCurva> reducirCurva(const std::vector<PuntoCurva>& curva
 
 /**
  * Entrada: nombre de una cola. Salida: true si la cola existe y tiene
- * `implementada = true`; false si no existe o si todavía no está implementada.
+ * implementada = true; false si no existe o si todavía no está implementada.
  */
 static bool implementada(const std::string& cola) {
     if (cola == "binomial") return ColaBinomial::implementada;
@@ -107,7 +107,7 @@ static bool implementada(const std::string& cola) {
     return false;
 }
 
-/** Entrada: cantidad de bytes. Salida: texto con esa cantidad en MiB y un decimal (p. ej. "24.3 MiB"). */
+/** Entrada: cantidad de bytes. Salida: texto con esa cantidad en MiB. */
 static std::string mb(double bytes) {
     std::ostringstream o;
     o << std::fixed << std::setprecision(1) << bytes / (1024.0 * 1024.0) << " MiB";
@@ -115,17 +115,17 @@ static std::string mb(double bytes) {
 }
 
 /**
- * Estimación analítica de memoria (sección 6.2) para v vértices y e aristas.
+ * Estimación analítica de memoria  para v vértices y e aristas.
  * Entrada: v, e. Salida: imprime en stdout cada componente y los picos estimados.
  */
 static void imprimirMemoria(int64_t v, int64_t e) {
     const double grafo = static_cast<double>(Grafo::bytesEstimados(v, e));
     const double aux = static_cast<double>(v) * (sizeof(double) + sizeof(int));  // costos, parent
-    const double ptrs = static_cast<double>(v) * sizeof(void*);                  // nodoDe
-    const double arbol = static_cast<double>(v - 1) * sizeof(std::pair<int, int>);  // T (línea 5)
+    const double ptrs = static_cast<double>(v) * sizeof(void*);  // nodoDe
+    const double arbol = static_cast<double>(v - 1) * sizeof(std::pair<int, int>);  // T 
     const double gen = static_cast<double>(e) * sizeof(uint64_t);  // temporal del generador
     const double cursor = static_cast<double>(v) * sizeof(int64_t);  // cursor del paso CSR
-    // Pico en la generación: CSR completo + claves + cursor viven a la vez (paso 3).
+    // Pico en la generación: CSR completo + claves + cursor viven a la vez.
     const double picoGen = grafo + gen + cursor;
     // Pico en Prim: CSR + nodos de la cola + nodoDe + costos/parent + T.
     const double picoPrimBin = grafo + aux + ptrs + arbol + static_cast<double>(v) * ColaBinomial::bytesPorNodo();
@@ -158,7 +158,7 @@ static void calibrarReloj(int64_t llamadas) {
     const auto t1 = Reloj::now();
     static volatile int64_t sumidero;
     sumidero = suma;
-    (void)sumidero;  // evita -Wunused-but-set-variable; la escritura volátil se conserva
+    (void)sumidero; 
     const double totalNs = std::chrono::duration<double, std::nano>(t1 - t0).count();
     std::cout << "Calibracion de steady_clock::now() (" << llamadas << " llamadas)\n"
               << "  Tiempo total:       " << std::fixed << std::setprecision(3) << totalNs / 1e6 << " ms\n"
@@ -168,9 +168,8 @@ static void calibrarReloj(int64_t llamadas) {
 
 /**
  * Ejecuta la batería de experimentos (o solo --memoria / --calibrar).
- * Entrada: opciones de línea de comandos (ver el encabezado de este archivo o --ayuda).
+ * Entrada: opciones de línea de comandos.
  * Salida: CSV en la carpeta --salida y progreso por stderr; código de salida 0, 1 o 2
- * (ver el encabezado).
  */
 int main(int argc, char** argv) {
     std::string series = "ABCD";
@@ -207,7 +206,7 @@ int main(int argc, char** argv) {
     if (soloMemoria) {
         std::cout << "Estimacion de memoria (seccion 6.2)\n";
         imprimirMemoria(int64_t(1) << 15, int64_t(1) << 20);
-        imprimirMemoria(int64_t(1) << 22, int64_t(1) << 24);  // caso más grande de la serie B
+        imprimirMemoria(int64_t(1) << 22, int64_t(1) << 24); // caso más grande de la serie B
         return 0;
     }
     if (soloCalibrar) {
@@ -265,10 +264,10 @@ int main(int argc, char** argv) {
 
             double pesoRef = 0.0;
             // Se alterna el orden de las colas entre repeticiones para no favorecer
-            // a ninguna con efectos de caché / frecuencia de CPU.
+            // a ninguna con efectos de caché o frecuencia de CPU.
             for (size_t q = 0; q < colas.size(); ++q) {
                 const std::string& cola = colas[(q + rep) % colas.size()];
-                // Repeticiones medidas: en C y D se mide cada decreaseKey, pero SIN curva (cadaK = 0).
+                // Repeticiones medidas: en C y D se mide cada decreaseKey, sin curva (cadaK = 0).
                 ResultadoPrim r = ejecutar(cola, g, amortizado, 0);
 
                 fT << c.serie << ',' << c.i << ',' << c.j << ',' << v << ',' << e << ',' << rep << ','

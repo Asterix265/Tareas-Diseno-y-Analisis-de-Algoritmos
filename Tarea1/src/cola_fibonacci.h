@@ -1,10 +1,10 @@
 #pragma once
-/** Cola de Fibonacci con listas circulares, cortes y cortes en cascada. */
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <utility>
 #include <vector>
+
 
 /** Nodo de Fibonacci; las raíces y los hijos usan anillos doblemente enlazados. */
 struct NodoFibonacci {
@@ -21,7 +21,7 @@ public:
     int64_t ops = 0;  // cortes realizados únicamente por decreaseKey
     int64_t opsCascada = 0;  // solo los cortes hechos por cascadingCut (sin el corte inicial)
 
-    /** Entrada: cantidad de vértices 0..n-1. */
+    /** Entrada: cantidad de vértices 0 a n-1. */
     explicit ColaFibonacci(int n) : nodoDe(n, nullptr) {}
     /** Libera los nodos que siguen presentes en la cola. */
     ~ColaFibonacci() { for (NodoFibonacci* x : nodoDe) delete x; }
@@ -39,7 +39,7 @@ public:
         ++tam;
     }
 
-    /** Salida: par mínimo. Promueve hijos a raíces y consolida por grado. */
+    /** Salida: par mínimo */
     std::pair<double, int> extractMin() {
         if (!minimo) throw std::logic_error("extractMin sobre cola vacia");
         NodoFibonacci* x = minimo;
@@ -69,8 +69,9 @@ public:
     }
 
     /**
-     * Entrada: v presente y key <= clave; corta si viola el orden y propaga cortes.
-     * Compara solo claves y en forma estricta (línea 3 de decreaseKey-Fibonacci).
+     * Entrada: v en la cola  y key <= clave; si la nueva clave queda menor que la del padre,
+     * corta el nodo y aplica los cortes en cascada.
+     * Compara solo claves y en forma estricta.
      * El mínimo solo se actualiza si x es raíz: con claves iguales x no se corta
      * y queda como hijo, así que no puede ser el mínimo de la lista de raíces.
      */
@@ -91,7 +92,7 @@ public:
     bool empty() const { return tam == 0; }
     /** Entrada: vértice v en 0..n-1. Salida: true si v todavía está en la cola. */
     bool contiene(int v) const { return nodoDe[v] != nullptr; }
-    /** Salida: bytes de un nodo, excluido nodoDe. */
+    /** Salida: bytes de un nodo */
     static size_t bytesPorNodo() { return sizeof(NodoFibonacci); }
 
 private:
@@ -99,24 +100,24 @@ private:
     NodoFibonacci* minimo = nullptr;
     int tam = 0;
 
-    /** Orden total para empates reproducibles (elección del mínimo y enlaces). */
+    // Orden total para empates reproducibles. 
     static bool menor(const NodoFibonacci* a, const NodoFibonacci* b) {
         return a->clave < b->clave || (a->clave == b->clave && a->vertice < b->vertice);
     }
-    /** Inserta x inmediatamente antes de pos en un anillo circular. */
+    // Inserta x inmediatamente antes de pos en un anillo circular. 
     static void insertarAntes(NodoFibonacci* pos, NodoFibonacci* x) {
         x->izq = pos->izq;
         x->der = pos;
         pos->izq->der = x;
         pos->izq = x;
     }
-    /** Saca x de su anillo, dejándolo como anillo unitario. */
+    // Saca x de su anillo, dejándolo como anillo unitario. 
     static void quitar(NodoFibonacci* x) {
         x->izq->der = x->der;
         x->der->izq = x->izq;
         x->izq = x->der = x;
     }
-    /** Agrega x a la lista de raíces y actualiza el mínimo. */
+    // Agrega x a la lista de raíces y actualiza el mínimo. 
     void agregarRaiz(NodoFibonacci* x) {
         x->padre = nullptr;
         x->marca = false;
@@ -126,7 +127,7 @@ private:
             if (menor(x, minimo)) minimo = x;
         }
     }
-    /** Une dos árboles del mismo grado, dejando al menor como padre. */
+    // Une dos árboles del mismo grado, dejando al menor como padre.
     static void enlazar(NodoFibonacci* hijo, NodoFibonacci* padre) {
         hijo->padre = padre;
         hijo->marca = false;
@@ -134,7 +135,7 @@ private:
         else insertarAntes(padre->hijo, hijo);
         ++padre->grado;
     }
-    /** Reúne las raíces por grado tras extractMin y reconstruye su anillo. */
+    // Reúne las raíces por grado tras extractMin 
     void consolidar() {
         std::vector<NodoFibonacci*> raices;
         NodoFibonacci* r = minimo;
@@ -159,7 +160,7 @@ private:
         minimo = nullptr;
         for (NodoFibonacci* x : porGrado) if (x) agregarRaiz(x);
     }
-    /** Quita x de los hijos de p y lo agrega a las raíces; cuenta un corte. */
+    // Quita x de los hijos de p y lo agrega a las raíces; cuenta un corte. 
     void cortar(NodoFibonacci* x, NodoFibonacci* p) {
         if (p->hijo == x) p->hijo = (x->der == x) ? nullptr : x->der;
         quitar(x);
@@ -167,7 +168,7 @@ private:
         agregarRaiz(x);
         ++ops;
     }
-    /** Marca al primer ancestro que pierde un hijo; corta los ya marcados (cuenta en opsCascada). */
+    // Marca al primer ancestro que pierde un hijo; corta los ya marcados (cuenta en opsCascada). 
     void corteCascada(NodoFibonacci* x) {
         NodoFibonacci* p = x->padre;
         if (!p) return;

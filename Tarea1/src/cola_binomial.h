@@ -1,10 +1,11 @@
 #pragma once
-/** Cola binomial: raíces ordenadas por grado y acceso directo vértice -> nodo. */
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <utility>
 #include <vector>
+
+/** Cola binomial: raíces ordenadas por grado y acceso directo vértice -> nodo. */
 
 /** Nodo binomial: la lista hijo/hermano almacena hijos de grado decreciente. */
 struct NodoBinomial {
@@ -81,8 +82,8 @@ public:
     }
 
     /**
-     * Entrada: v presente y key <= clave actual. Sube contenido y repara nodoDe.
-     * Compara solo claves y en forma estricta (línea 3 de decreaseKey-Binomial):
+     * Entrada: v presente en la cola y key <= clave actual. Sube contenido y repara nodoDe.
+     * Compara solo claves y en forma estricta:
      * con claves iguales no hay intercambio.
      */
     void decreaseKey(int v, double key) {
@@ -115,18 +116,18 @@ private:
     NodoBinomial* minimo = nullptr;
     int tam = 0;
 
-    /** Orden total para resolver empates de manera reproducible (elección del mínimo y enlaces). */
+    // Orden total para resolver empates de manera reproducible (elección del mínimo y enlaces).
     static bool menor(const NodoBinomial* a, const NodoBinomial* b) {
         return a->clave < b->clave || (a->clave == b->clave && a->vertice < b->vertice);
     }
-    /** Une dos árboles del mismo grado; entrada: hijo y padre; salida: árbol padre. */
+    // Une dos árboles del mismo grado; entrada: hijo y padre; salida: árbol padre.
     static void enlazar(NodoBinomial* hijo, NodoBinomial* padre) {
         hijo->padre = padre;
         hijo->hermano = padre->hijo;
         padre->hijo = hijo;
         ++padre->grado;
     }
-    /** Fusiona dos listas de raíces ordenadas por grado. */
+    // Fusiona dos listas de raíces ordenadas por grado. 
     static NodoBinomial* unirListas(NodoBinomial* a, NodoBinomial* b) {
         NodoBinomial cabeza{};
         NodoBinomial* cola = &cabeza;
@@ -139,7 +140,7 @@ private:
         cola->hermano = a ? a : b;
         return cabeza.hermano;
     }
-    /** Enlaza raíces del mismo grado hasta dejar a lo sumo una por grado. */
+    // Enlaza raíces del mismo grado hasta dejar a lo mas una por grado. 
     void consolidar() {
         if (!raices) return;
         NodoBinomial *prev = nullptr, *x = raices, *sig = x->hermano;

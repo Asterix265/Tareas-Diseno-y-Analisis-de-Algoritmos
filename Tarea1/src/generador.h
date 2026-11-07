@@ -1,17 +1,14 @@
 #pragma once
 /**
- * generador.h — Generador de grafos conexos aleatorios (sección 6.1).
+ *  Generador de grafos conexos aleatorios.
  *
  * Método:
  *  1. Árbol cobertor: para cada vértice i = 1..v-1 se agrega la arista
- *     {i, p} con p uniforme en [0, i-1]. Garantiza conectividad.
+ *     {i, p} con p uniforme en [0, i-1]. Garantizando conectividad.
  *  2. Se agregan aristas {a,b} aleatorias (a != b) hasta completar e.
  *     Las repetidas se descartan y se vuelven a sortear (por lotes:
  *     se ordena, se eliminan duplicados y se sortean las que faltan).
  *  3. Pesos uniformes en (0,1], asignados en orden determinista.
- *
- * No usa matrices v x v (el generador de la tarea anterior era O(v^2) en
- * memoria, imposible para v = 2^22). Memoria extra: 8 bytes por arista.
  */
 #include <algorithm>
 #include <cstdint>
@@ -24,20 +21,20 @@
 
 namespace detalle {
 /**
- * Codifica la arista no dirigida {a,b} como un entero de 64 bits.
- * Entrada: extremos a y b (en cualquier orden).
+ * Para la arista no dirigida {a,b} usamos un entero de 64 bits.
+ * Entrada: extremos a y b
  * Salida: (min(a,b) << 32) | max(a,b); {a,b} y {b,a} dan la misma clave.
  */
 inline uint64_t clave(uint32_t a, uint32_t b) {
     if (a > b) std::swap(a, b);
     return (static_cast<uint64_t>(a) << 32) | b;
 }
-}  // namespace detalle
+} 
 
 /**
- * Genera un grafo conexo, simple (sin multiaristas ni lazos), no dirigido.
+ * Genera un grafo conexo, simple y no dirigido.
  * Entrada: v = |V| (>= 2), e = |E| con v-1 <= e <= v(v-1)/2, semilla.
- * Salida: Grafo en formato CSR. Misma semilla => mismo grafo en cualquier SO.
+ * Salida: Grafo en formato CSR. Como usamos la misma semilla obtenemos el mismo grafo en cualquier SO.
  */
 inline Grafo generarGrafo(int v, int64_t e, uint32_t semilla) {
     const int64_t maxAristas = static_cast<int64_t>(v) * (v - 1) / 2;
@@ -49,7 +46,7 @@ inline Grafo generarGrafo(int v, int64_t e, uint32_t semilla) {
     std::vector<uint64_t> claves;
     claves.reserve(static_cast<size_t>(e));
 
-    // 1. Árbol cobertor aleatorio (aristas distintas por construcción).
+    // 1. Árbol cobertor aleatorio.
     for (uint32_t i = 1; i < static_cast<uint32_t>(v); ++i) {
         uint32_t p = static_cast<uint32_t>(rng.enRango(i));
         claves.push_back(detalle::clave(p, i));
@@ -61,7 +58,7 @@ inline Grafo generarGrafo(int v, int64_t e, uint32_t semilla) {
         for (int64_t k = 0; k < faltan; ++k) {
             uint32_t a = static_cast<uint32_t>(rng.enRango(v));
             uint32_t b = static_cast<uint32_t>(rng.enRango(v));
-            while (b == a) b = static_cast<uint32_t>(rng.enRango(v));  // sin lazos
+            while (b == a) b = static_cast<uint32_t>(rng.enRango(v));
             claves.push_back(detalle::clave(a, b));
         }
         std::sort(claves.begin(), claves.end());

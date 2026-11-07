@@ -112,6 +112,9 @@ public:
         return resultado;
     }
 
+    /** Entrada: archivo serializado. Salida: cantidad de pares guardados en todo el árbol (Σ k_buffer). */
+    static std::uint64_t contarPares(ArchivoNodos<Nodo>& archivo) { return contarEn(archivo, 0); }
+
 private:
     /** Resultado de dividir un nodo: dos mitades y la llave que sube al padre. */
     struct Division {
@@ -312,6 +315,16 @@ private:
             if (tocaIzquierda && tocaDerecha)
                 buscarEn(archivo, static_cast<std::size_t>(nodo.hijos[i]), inferior, superior, resultado);
         }
+    }
+
+    /** Entrada: archivo y bloque. Salida: pares guardados en los buffers del subárbol. */
+    static std::uint64_t contarEn(ArchivoNodos<Nodo>& archivo, std::size_t indice) {
+        const Nodo nodo = archivo.leer(indice);
+        std::uint64_t total = static_cast<std::uint64_t>(nodo.k_buffer);
+        if (nodo.es_interno)
+            for (int i = 0; i <= nodo.k_llaves; ++i)
+                total += contarEn(archivo, static_cast<std::size_t>(nodo.hijos[i]));
+        return total;
     }
 
     double alfa_;

@@ -12,7 +12,8 @@ Este archivo sirve de base para la sección Desarrollo del informe.
 - Todo acceso al "disco" pasa por `Disco<Nodo>` (construcción) y `ArchivoNodos<Nodo>` (búsqueda), los
   mismos del árbol B. La raíz siempre está en el bloque 0.
 - La interfaz pública es la misma que la de `ArbolB` (`insertar`, `guardar`, `buscarRango`, `lecturas`,
-  `escrituras`, `cantidadNodos`, `tamanoBytes`), más `altura()`, `alfa()` y `estadisticas()`.
+  `escrituras`, `cantidadNodos`, `tamanoBytes`), más `altura()`, `alfa()`, `estadisticas()` y
+  `contarPares(archivo)`. El `main` de experimentos la usa para los tres árboles con la misma plantilla.
 
 ## Vaciado (flush)
 
@@ -61,6 +62,7 @@ devuelvan lo mismo en 50 búsquedas de una semana. También pasa con AddressSani
 
 ## Pendiente
 
-- Elegir el α de los experimentos (0,5 por ahora) y justificarlo con el bonus, que conviene hacer con
-  ε ≈ 0,25: con ε ≈ 0,75, f ≈ 384/127 ≈ 3, así que ⌈α·f⌉ solo toma los valores 1, 2 o 3.
-- Integrar `ArbolBe025` y `ArbolBe075` al `main` de experimentos (persona B).
+- Elegir el α de los experimentos (0,5 por ahora, valor predeterminado de `./experimento`) y
+  justificarlo con el bonus.
+- Hoy `./experimento --bonus` usa Bε(126,384). Conviene hacerlo con ε ≈ 0,25: con ε ≈ 0,75,
+  f ≈ 384/127 ≈ 3, así que ⌈α·f⌉ solo toma los valores 1, 2 o 3 y varios α dan el mismo árbol.

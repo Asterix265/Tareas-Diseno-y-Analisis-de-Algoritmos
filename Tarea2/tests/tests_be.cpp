@@ -116,6 +116,7 @@ void probar(const std::string& nombre, double alfa, const std::vector<Par>& pare
     r.visitas.assign(arbol.cantidadNodos(), 0);
     revisar<C, L>(archivo, 0, 0, -2147483648LL, 2147483647LL, r);
     comprobar(r.pares.size() == pares.size(), nombre + ": la suma de k_buffer no es N");
+    comprobar(Arbol::contarPares(archivo) == pares.size(), nombre + ": contarPares() no es N");
     comprobar(r.nodos == arbol.cantidadNodos(), nombre + ": hay bloques no alcanzables desde la raíz");
     comprobar(r.profundidadHojas + 1 == arbol.altura(), nombre + ": altura() no coincide con las hojas");
     comprobar(mismoMulticonjunto(r.pares, pares), nombre + ": el árbol no guarda exactamente los pares insertados");

@@ -1,9 +1,14 @@
+#!/usr/bin/env python3
 """Grafica las métricas de Tarea 2 y dos resultados de una misma búsqueda."""
 
 import argparse
 import csv
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 
 METRICAS = (
     ("construccion_ms", "Tiempo de construcción (ms)", "construccion.png"),
@@ -25,7 +30,7 @@ def leer_metricas(ruta):
     return agrupadas
 
 
-def graficar_metricas(agrupadas, salida, plt):
+def graficar_metricas(agrupadas, salida):
     """Recibe las series por árbol; guarda cinco gráficos comparativos."""
     for columna, eje_y, nombre in METRICAS:
         fig, ax = plt.subplots(figsize=(8, 5))
@@ -49,7 +54,7 @@ def leer_curva(ruta):
             [float(f["temperatura"]) for f in filas])
 
 
-def graficar_temperatura(carpeta, salida, plt):
+def graficar_temperatura(carpeta, salida):
     """Compara la primera búsqueda de los tamaños mínimo y máximo disponibles."""
     curvas = sorted(carpeta.glob("busqueda_b_*.csv"),
                    key=lambda ruta: int(ruta.stem.rsplit("_", 1)[1]))
@@ -68,18 +73,39 @@ def graficar_temperatura(carpeta, salida, plt):
     plt.close(fig)
 
 
+def graficar_bonus(carpeta, salida):
+    """Recibe bonus.csv; compara carga y búsqueda para los ocho valores de alfa."""
+    ruta = carpeta / "bonus.csv"
+    if not ruta.exists():
+        return
+    with ruta.open(newline="", encoding="utf-8") as archivo:
+        filas = sorted(csv.DictReader(archivo), key=lambda fila: float(fila["alfa"]))
+    if not filas:
+        return
+    alfa = [float(f["alfa"]) for f in filas]
+    fig, ejes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
+    ejes[0].plot(alfa, [float(f["construccion_ms"]) for f in filas], marker="o")
+    ejes[0].set_ylabel("Construcción (ms)")
+    ejes[1].plot(alfa, [float(f["busqueda_promedio_ms"]) for f in filas], marker="o")
+    ejes[1].set_ylabel("Búsqueda promedio (ms)")
+    ejes[1].set_xlabel("α")
+    for ax in ejes:
+        ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(salida / "bonus_alfa.png", dpi=180)
+    plt.close(fig)
+
+
 def main():
     """Entrada: rutas opcionales. Salida: gráficos PNG en la carpeta indicada."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--metricas", type=Path, default=Path("resultados/metricas_b.csv"))
+    parser.add_argument("--metricas", type=Path, default=Path("resultados/metricas.csv"))
     parser.add_argument("--salida", type=Path, default=Path("figuras"))
     args = parser.parse_args()
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     args.salida.mkdir(parents=True, exist_ok=True)
-    graficar_metricas(leer_metricas(args.metricas), args.salida, plt)
-    graficar_temperatura(args.metricas.parent, args.salida, plt)
+    graficar_metricas(leer_metricas(args.metricas), args.salida)
+    graficar_temperatura(args.metricas.parent, args.salida)
+    graficar_bonus(args.metricas.parent, args.salida)
 
 
 if __name__ == "__main__":

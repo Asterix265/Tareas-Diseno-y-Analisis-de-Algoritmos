@@ -27,19 +27,91 @@ Se generan `resultados/metricas.csv`, `verificacion.csv`, `rangos.csv` y, para e
 
 El servidor usado en la Tarea 1 fue `kestrelserver`: Ubuntu 26.04.1 LTS, x86_64, AMD Ryzen 7 3750H (4 núcleos, 8 hilos), 9,1 GiB de RAM y g++ 15.2.0. `Tarea1/resultados/setup.txt` registra ese ambiente. Antes de la corrida final de Tarea 2 hay que confirmar que sigue siendo el mismo y guardar un setup nuevo, pues la memoria disponible, la versión del sistema y otros detalles pueden cambiar.
 
-En el servidor, situarse en `Tarea2/`, copiar `datos.bin` y `datos_sample.txt` por separado (no se suben al repositorio), y ejecutar:
+En el servidor, situarse en `Tarea2/`, copiar `datos.bin` y `datos_sample.txt` por separado (no se suben al repositorio) y ejecutar, en orden:
 
 ```bash
-make clean && make
-make test
+make clean && make all tests_be
+make test && make test_be
+./experimento --desde 15 --hasta 18 --salida resultados_prueba
 mkdir -p resultados
-{ lscpu; free -h; uname -a; lsb_release -a; g++ --version; } > resultados/setup_tarea2.txt 2>&1
+{ lscpu; free -h; uname -a; lsb_release -a; g++ --version; cat /proc/cmdline; \
+  cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor; \
+  cat /sys/class/power_supply/AC*/online; git log -1 --oneline; } > resultados/setup_tarea2.txt 2>&1
 tmux new -s tarea2
 ./experimento 2>&1 | tee resultados/log.txt
-./experimento --bonus 2>&1 | tee resultados/log_bonus.txt
+python3 scripts/graficos.py
 ```
 
-Para el informe, usar solo mediciones del servidor y registrar también cualquier cambio de configuración del equipo. Conviene hacer primero `./experimento --desde 15 --hasta 15` en el servidor para comprobar rutas y datos antes de lanzar los 12 tamaños. La corrida bonus es independiente y puede tomar bastante tiempo; los gráficos se generan después de ambas corridas.
+Los dos primeros comandos compilan y corren las pruebas; el tercero es una batería corta que comprueba rutas y datos. El bloque entre llaves guarda el ambiente del equipo, la corrida completa va dentro de `tmux` y al final se generan los gráficos. Para el informe, usar solo mediciones del servidor, sin otras cargas, y registrar cualquier cambio de configuración del equipo. Qué hace cada comando y cada flag está en la sección siguiente.
+
+## Comandos y flags
+
+### Compilación
+
+El Makefile compila con `g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc`. Los objetivos son `make` o `make all` (`experimento` y `tests_bin`), `make tests_be`, `make test`, `make test_be` y `make clean`.
+
+| Flag | Qué hace |
+|---|---|
+| `-std=c++17` | Compila con el estándar C++17 (el `main` usa `std::filesystem`). |
+| `-O2` | Nivel de optimización estándar. Todos los tiempos reportados se miden con este nivel. |
+| `-Wall -Wextra -Wpedantic` | Activan advertencias del compilador; no cambian el programa generado. El código compila sin advertencias. |
+| `-Isrc` | Busca los archivos `.h` en `src/`. |
+
+Para buscar errores de memoria se compilaron también las pruebas con sanitizers. Esos binarios son más lentos y nunca se usan para medir:
+
+```bash
+g++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Isrc -o tests_be_asan tests/tests_be.cpp
+```
+
+| Flag | Qué hace |
+|---|---|
+| `-fsanitize=address` | Detecta lecturas o escrituras fuera de un arreglo y uso de memoria ya liberada. |
+| `-fsanitize=undefined` | Detecta comportamiento indefinido, como desbordes de enteros con signo. |
+| `-O1 -g -fno-omit-frame-pointer` | Optimización baja e información de depuración, para que cada reporte indique la línea exacta. |
+
+### Opciones de `./experimento`
+
+| Opción | Valor por omisión | Qué hace |
+|---|---|---|
+| `--datos ruta` | `datos.bin` | Archivo binario con los pares llave-valor. |
+| `--salida carpeta` | `resultados` | Carpeta donde se escriben los CSV; se crea si no existe. |
+| `--desde e`, `--hasta e` | 15 y 26 | Exponentes de la batería: se corre N = 2^e para cada e entre ambos (15 ≤ desde ≤ hasta ≤ 26). |
+| `--busquedas q` | 50 | Búsquedas por rango para cada N y cada árbol. |
+| `--semilla s` | 4102 | Semilla de `mt19937` para los rangos. Con la misma semilla, los rangos son idénticos para los tres árboles y todos los N. |
+| `--alfa a` | 0,5 | α del criterio de vaciado de ambos Bε (0 < α < 1). |
+| `--bonus` | — | En vez de la batería, corre el bonus: Bε(126,384) con 8 valores de α (0,1 a 0,8) y 20 búsquedas; escribe `bonus.csv`. |
+| `--bonus-exponente e` | 24 | Exponente de N para el bonus (15 a 24). |
+| `--ayuda` | — | Muestra el uso y termina. |
+
+Cada rango es [l, l + 604 800] (una semana), con l uniforme en [1 546 300 800, 1 754 006 400].
+
+### Qué mide y qué escribe
+
+Para cada N se cargan los primeros N pares en memoria antes de medir. El tiempo de construcción se mide con `std::chrono::steady_clock` alrededor del ciclo de inserciones, sin contar la lectura de `datos.bin` ni el guardado. El tiempo de búsqueda se mide solo alrededor de `buscarRango`, que lee los nodos desde el archivo.
+
+| Archivo | Contenido |
+|---|---|
+| `metricas.csv` | Una fila por árbol y N: tiempo de construcción (ms), lecturas, escrituras e I/Os totales de construcción (contadores de `Disco`), nodos y bytes (nodos × 4096), tiempo promedio de búsqueda (ms), I/Os promedio de búsqueda (bloques leídos del archivo) y pares hallados en promedio. |
+| `verificacion.csv` | Para cada búsqueda de cada Bε, cuántos pares halló, cuántos halló el árbol B e `iguales` = 1 si coinciden par por par. Si alguna no coincide, `./experimento` termina con error, así que una corrida que termina bien tiene 1 en todas las filas. |
+| `rangos.csv` | Los rangos [l, u] usados. |
+| `busqueda_b_<e>.csv` | Resultado de la primera búsqueda (tiempo Unix y temperatura) para el primer y el último N; lo usa el gráfico de temperatura. |
+| `log.txt` | Salida de la corrida, con el tiempo de construcción de cada árbol. |
+| `setup_tarea2.txt` | Ambiente del equipo, descrito en la tabla siguiente. |
+
+### Otros comandos de la corrida
+
+| Comando | Para qué |
+|---|---|
+| `tmux new -s tarea2` | Abre una sesión que sigue corriendo aunque se corte SSH. `Ctrl+b` y luego `d` la deja en segundo plano; `tmux attach -t tarea2` vuelve a ella. |
+| `2>&1 \| tee resultados/log.txt` | Junta la salida normal y la de errores, la muestra en pantalla y además la guarda en `log.txt`. |
+| `lscpu` | Modelo de CPU, núcleos, hilos y tamaños de caché L1, L2 y L3. |
+| `free -h` | RAM total y disponible. |
+| `uname -a`, `lsb_release -a` | Versión del kernel y del sistema operativo. |
+| `g++ --version` | Versión del compilador. |
+| `cat /proc/cmdline` | Parámetros de arranque del kernel, por ejemplo `tsc=reliable`, que fija el TSC como fuente del reloj que usa `steady_clock`. |
+| `cat .../scaling_governor` | Política de frecuencia de la CPU durante la corrida. |
+| `cat .../AC*/online` | 1 si el equipo estaba enchufado; en un notebook la frecuencia puede bajar con batería. |
+| `git log -1 --oneline` | Commit exacto del código medido. |
 
 ## Interfaz compartida
 

@@ -27,22 +27,26 @@ public:
     /** Salida: árbol con una hoja vacía en el bloque 0. */
     ArbolB() { disco_.agregar(NodoB{}); }
 
-    /** Entrada: par llave-valor. Salida: árbol actualizado. */
+    /** Entrada: par llave-valor. Salida: árbol actualizado; cada nivel se lee una sola vez. */
     void insertar(Par par) {
         NodoB raiz = disco_.leer(0);
-        if (raiz.k == b) {
-            const Division division = dividir(raiz);
-            const auto izq = disco_.agregar(division.izquierdo);
-            const auto der = disco_.agregar(division.derecho);
-            NodoB nueva{};
-            nueva.es_interno = 1;
-            nueva.k = 1;
-            nueva.llaves_valores[0] = division.mediano;
-            nueva.hijos[0] = static_cast<std::int32_t>(izq);
-            nueva.hijos[1] = static_cast<std::int32_t>(der);
-            disco_.escribir(0, nueva);
+        if (raiz.k < b) {
+            insertarEn(0, raiz, par);
+            return;
         }
-        insertarEn(0, par);
+        Division division = dividir(raiz);
+        const auto izq = disco_.agregar(division.izquierdo);
+        const auto der = disco_.agregar(division.derecho);
+        NodoB nueva{};
+        nueva.es_interno = 1;
+        nueva.k = 1;
+        nueva.llaves_valores[0] = division.mediano;
+        nueva.hijos[0] = static_cast<std::int32_t>(izq);
+        nueva.hijos[1] = static_cast<std::int32_t>(der);
+        disco_.escribir(0, nueva);
+        // Paso h) de 3.4.2: las mitades ya están en memoria, así que no se vuelven a leer.
+        if (par.llave <= division.mediano.llave) insertarEn(izq, division.izquierdo, par);
+        else insertarEn(der, division.derecho, par);
     }
 
     /** Entrada: ruta. Salida: árbol serializado, un nodo por bloque. */
@@ -87,9 +91,11 @@ private:
         return d;
     }
 
-    /** Entrada: nodo no lleno y par. Salida: inserción recursiva con split anticipado. */
-    void insertarEn(std::size_t indice, Par par) {
-        NodoB nodo = disco_.leer(indice);
+    /**
+     * Entrada: bloque, su nodo ya leído (no lleno) y par. Salida: inserción recursiva con split
+     * anticipado. Quien llama entrega el nodo en memoria, así que cada nivel cuenta una sola lectura.
+     */
+    void insertarEn(std::size_t indice, NodoB& nodo, Par par) {
         int i = 0;
         while (i < nodo.k && nodo.llaves_valores[i].llave < par.llave) ++i;
         if (!nodo.es_interno) {
@@ -111,9 +117,14 @@ private:
             nodo.hijos[i + 1] = static_cast<std::int32_t>(derecho);
             ++nodo.k;
             disco_.escribir(indice, nodo);
-            if (par.llave > d.mediano.llave) hijo = derecho;
+            if (par.llave > d.mediano.llave) {
+                hijo = derecho;
+                actual = d.derecho;
+            } else {
+                actual = d.izquierdo;
+            }
         }
-        insertarEn(hijo, par);
+        insertarEn(hijo, actual, par);
     }
 
     /** Entrada: bloque, rango inclusivo y resultado. Salida: agrega pares hallados. */

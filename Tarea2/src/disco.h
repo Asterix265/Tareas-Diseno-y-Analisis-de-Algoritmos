@@ -6,6 +6,21 @@
 #include <string>
 #include <vector>
 
+/**
+ * disco.h — Uso de disco de la sección 3.3 del enunciado.
+ *
+ * Disco<Nodo>: durante la construcción, el árbol es un arreglo de nodos en RAM cuyo primer
+ * elemento es la raíz. Cada acceso de lectura al arreglo cuenta una lectura y cada escritura
+ * (modificar una posición o agregar al final) cuenta una escritura. Al terminar, guardar()
+ * escribe los nodos de forma secuencial a un archivo binario, un bloque de 4096 bytes por nodo.
+ *
+ * ArchivoNodos<Nodo>: durante las búsquedas, el nodo i se lee desde el archivo en la posición
+ * i · 4096 y cada lectura cuenta un I/O.
+ *
+ * Ningún árbol toca el arreglo ni el archivo directamente: todo pasa por estas dos clases, así
+ * que los I/Os se cuentan en un solo lugar y de la misma forma para los tres árboles.
+ */
+
 /** Simula un disco de bloques durante la construcción del árbol. */
 template <class Nodo> class Disco {
     static_assert(sizeof(Nodo) == 4096, "Cada nodo debe ocupar un bloque de 4096 bytes");
@@ -45,10 +60,10 @@ public:
     /** Salida: bytes que ocupará el árbol serializado. */
     std::uint64_t tamanoBytes() const { return nodos_.size() * sizeof(Nodo); }
 
-    std::uint64_t lecturas = 0;
-    std::uint64_t escrituras = 0;
+    std::uint64_t lecturas = 0;    // lecturas simuladas durante la construcción
+    std::uint64_t escrituras = 0;  // escrituras simuladas (incluye agregar al final)
 private:
-    std::vector<Nodo> nodos_;
+    std::vector<Nodo> nodos_;  // el "disco": nodos_[0] es siempre la raíz
 };
 
 /** Lee un árbol serializado por bloques, durante las búsquedas. */
@@ -71,7 +86,7 @@ public:
         return nodo;
     }
 
-    std::uint64_t lecturas = 0;
+    std::uint64_t lecturas = 0;  // bloques leídos desde el archivo (I/Os de búsqueda)
 private:
-    std::ifstream entrada_;
+    std::ifstream entrada_;  // archivo binario del árbol, abierto en modo binario
 };

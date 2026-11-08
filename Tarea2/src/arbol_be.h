@@ -9,8 +9,9 @@
 #include "disco.h"
 
 /*
- * Árbol Bε en memoria externa (secciones 3.2, 3.4.3, 3.4.4 y 3.4.6 del enunciado).
- * Las decisiones que el enunciado no especifica están en docs/DECISIONES_BE.md:
+ * arbol_be.h — Árbol Bε en memoria externa (secciones 3.2, 3.4.3, 3.4.4 y 3.4.6 del enunciado).
+ * Una sola plantilla ArbolBe<C, L> sirve para las dos configuraciones pedidas y para cualquier α.
+ * Decisiones que el enunciado no especifica (se explican en la sección Desarrollo del informe):
  *  - Un hijo que recibe un grupo sin espacio suficiente después de dividirse recibe
  *    solo lo que cabe; el resto vuelve al buffer del padre ("bajar por partes").
  *  - Una hoja que no está llena y debe dividirse durante un vaciado se corta en ⌈k/2⌉.
@@ -66,7 +67,9 @@ public:
     /** Entrada: par llave-valor. Salida: árbol actualizado; el par entra por la raíz (3.4.4). */
     void insertar(Par par) {
         Nodo raiz = disco_.leer(0);
+        // a) La raíz es una hoja.
         if (!raiz.es_interno) {
+            // Hoja llena: split; izq y der van al final y la nueva raíz interna recibe el par.
             if (raiz.k_buffer == L) {
                 ++est_.splitsHoja;
                 raiz = nuevaRaiz(dividirHoja(raiz));
@@ -75,6 +78,8 @@ public:
             disco_.escribir(0, raiz);
             return;
         }
+        // b) La raíz es interna y su buffer está lleno: flush (repetido si una pasada no libera
+        // espacio); si la raíz llega a c llaves, split interno con una nueva raíz en el bloque 0.
         if (raiz.k_buffer == L) {
             while (raiz.k_buffer == L && raiz.k_llaves < C) vaciar(raiz);
             if (raiz.k_llaves == C) {
@@ -82,6 +87,7 @@ public:
                 raiz = nuevaRaiz(dividirInterno(raiz));
             }
         }
+        // El par se inserta en orden en el buffer de la raíz: 1 lectura + 1 escritura por inserción.
         insertarOrdenado(raiz, par);
         disco_.escribir(0, raiz);
     }
@@ -235,6 +241,7 @@ private:
      */
     void vaciar(Nodo& nodo) {
         ++est_.vaciados;
+        // a) Agrupar el buffer por hijo: como está ordenado, el grupo i es el tramo [inicio[i], fin[i]).
         const int hijos = nodo.k_llaves + 1;
         int inicio[C + 1];
         int fin[C + 1];
@@ -246,8 +253,10 @@ private:
                 : nodo.k_buffer;
             fin[i] = pos;
         }
+        // b) f = ⌈k_buffer / (k_llaves + 1)⌉ (palomar) y se eligen los grupos con al menos α·f pares.
         const int f = (nodo.k_buffer + hijos - 1) / hijos;
         const double umbral = alfa_ * f;
+        // c) Se procesan de derecha a izquierda, así un split no desfasa los índices pendientes.
         for (int i = hijos - 1; i >= 0; --i) {
             const int tamano = fin[i] - inicio[i];
             if (tamano == 0 || tamano < umbral) continue;
@@ -262,16 +271,21 @@ private:
      * cabe vuelve al buffer del padre en la misma posición. Escribe el hijo, no el padre.
      */
     void bajarGrupo(Nodo& padre, int i, int a, int b) {
+        // c) Se extrae el grupo del buffer del padre y se actualiza su k_buffer.
         const std::vector<Par> grupo(padre.buffer + a, padre.buffer + b);
         std::copy(padre.buffer + b, padre.buffer + padre.k_buffer, padre.buffer + a);
         padre.k_buffer -= b - a;
         const int m = b - a;
+        // Se lee el hijo V (una lectura).
         const auto indice = static_cast<std::size_t>(padre.hijos[i]);
         Nodo hijo = disco_.leer(indice);
+        // V interno sin espacio: flush recursivo sobre V hasta tener espacio o llegar a c llaves.
         if (hijo.es_interno) {
             while (hijo.k_buffer + m > L && hijo.k_llaves < C) vaciar(hijo);
         }
+        // V hoja sin espacio, o V interno lleno de llaves: hay que dividir V.
         const bool divide = hijo.es_interno ? hijo.k_llaves == C : hijo.k_buffer + m > L;
+        // Caso no especificado en el enunciado: V tiene espacio y recibe el grupo completo.
         if (!divide) {
             mezclar(hijo, grupo.data(), m);
             disco_.escribir(indice, hijo);
@@ -280,14 +294,17 @@ private:
         if (hijo.es_interno) ++est_.splitsInternos;
         else ++est_.splitsHoja;
         Division d = hijo.es_interno ? dividirInterno(hijo) : dividirHoja(hijo);
+        // El grupo se reparte: llaves <= divisoria a izq y > divisoria a der, cada mitad hasta llenarse.
         const int corte = posicionMayor(grupo.data(), m, d.divisoria);
         std::vector<Par> sobrantes;
         moverLoQueQuepa(d.izquierdo, grupo.data(), corte, sobrantes);
         moverLoQueQuepa(d.derecho, grupo.data() + corte, m - corte, sobrantes);
+        // izq reemplaza a V en su bloque, der va al final y la divisoria sube al padre.
         disco_.escribir(indice, d.izquierdo);
         const auto derecho = disco_.agregar(d.derecho);
         agregarDivisoria(padre, i, d.divisoria, derecho);
         if (sobrantes.empty()) return;
+        // Lo que no cupo vuelve al buffer del padre en la misma posición ("bajar por partes").
         ++est_.lotesParciales;
         const int r = static_cast<int>(sobrantes.size());
         std::copy_backward(padre.buffer + a, padre.buffer + padre.k_buffer,
@@ -303,11 +320,13 @@ private:
     static void buscarEn(ArchivoNodos<Nodo>& archivo, std::size_t indice,
                          std::int32_t inferior, std::int32_t superior, std::vector<Par>& resultado) {
         const Nodo nodo = archivo.leer(indice);
+        // Hoja a) o interno a): pares del buffer en [inferior, superior]; el buffer está ordenado.
         const Par* fin = nodo.buffer + nodo.k_buffer;
         const Par* p = std::lower_bound(nodo.buffer, fin, inferior,
             [](const Par& par, std::int32_t k) { return par.llave < k; });
         for (; p != fin && p->llave <= superior; ++p) resultado.push_back(*p);
         if (!nodo.es_interno) return;
+        // Interno b): se baja a todos los hijos cuyos rangos intersectan [inferior, superior].
         for (int i = 0; i <= nodo.k_llaves; ++i) {
             // La igualdad a la izquierda admite llaves repetidas a ambos lados de un split.
             const bool tocaIzquierda = i == 0 || superior >= nodo.llaves[i - 1];
@@ -327,10 +346,10 @@ private:
         return total;
     }
 
-    double alfa_;
-    int altura_ = 1;
-    EstadisticasBe est_;
-    Disco<Nodo> disco_;
+    double alfa_;         // α del criterio de vaciado, en (0, 1)
+    int altura_ = 1;      // niveles del árbol; crece en 1 con cada split de la raíz
+    EstadisticasBe est_;  // contadores de vaciados, splits y lotes parciales
+    Disco<Nodo> disco_;   // arreglo de nodos en RAM que simula el disco y cuenta los I/Os
 };
 
 /** Configuración ε ≈ 0,25: 4 llaves divisorias (5 hijos) y buffer de 506 pares. */

@@ -1,38 +1,50 @@
-# Tarea 2 — Árboles B y Bε (CC4102)
+# Tarea 2 — Árboles B y Bε en memoria externa (CC4102)
 
-Estado: infraestructura de bloques, lector de `datos.bin`, árbol B, dos configuraciones Bε, experimentos y bonus implementados. Las mediciones locales verifican el funcionamiento; los tiempos finales se obtendrán en el servidor.
+Árbol B (b = 340) y árbol Bε en dos configuraciones, ε ≈ 0,25 (c = 4, l_max = 506) y ε ≈ 0,75 (c = 126, l_max = 384), con nodos de 4096 bytes en un disco simulado, más la batería de experimentos de la sección 4 del enunciado. La tarea fue ejecutada en Ubuntu sin interfaz gráfica.
+
+---
 
 ## Requisitos
 
-- Compilador C++17 y `make`. Para los gráficos, Python 3 con `matplotlib` (`python3 -m pip install matplotlib`).
-- `datos.bin` y `datos_sample.txt` en esta carpeta. Ninguno se incluye en Git.
+- Un compilador C++17 con `std::filesystem` (g++ ≥ 9 o clang ≥ 7) y `make`. En Ubuntu:
+  `sudo apt install g++ make python3 python3-matplotlib`.
+- Python 3 con matplotlib, solo para los gráficos.
+- `datos.bin` y `datos_sample.txt` (entregados por el equipo docente) copiados en esta carpeta. No se incluyen en la entrega.
 
-## Verificación actual
+## Compilar
 
-Desde `Tarea2/`, ejecutar `make test`. La prueba compara los primeros 50 pares de `datos.bin` con la muestra, inserta 10 000 pares (incluidas llaves repetidas) en B y compara 100 búsquedas con `std::multimap`. También inserta los primeros 32 768 pares reales en B y comprueba 10 búsquedas contra un conteo directo. Para cada Bε inserta 30 000 pares con duplicados y 20 000 llaves crecientes, comprueba la cantidad total y compara búsquedas con la referencia.
+Desde la carpeta `Tarea2/`:
 
-`make test_be` corre las pruebas extensas del Bε (`tests/tests_be.cpp`, unos segundos): ambas configuraciones con α de 0,1, 0,5 y 0,9, árboles chicos, llaves repetidas, crecientes, decrecientes, todas iguales y los primeros `2^18` pares reales. Revisa las invariantes del árbol serializado (orden, capacidades, rangos de cada subárbol, hojas a la misma profundidad, Σ k_buffer = N) y compara cada búsqueda con una referencia y con el árbol B. Sin `datos.bin` omite los casos reales.
+```bash
+g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc -o experimento src/main.cpp
+g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc -o tests_bin tests/tests.cpp
+g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc -o tests_be tests/tests_be.cpp
+```
 
-## Experimento de los tres árboles
+O con make: `make` compila `experimento` y `tests_bin`, `make test` corre las pruebas del árbol B, `make test_be` compila y corre las pruebas del árbol Bε y `make clean` borra los binarios.
 
-`make` compila `experimento`. `./experimento --desde 15 --hasta 15` ejecuta un tamaño de prueba; sin opciones ejecuta `2^15` a `2^26`, con 50 búsquedas por tamaño y por árbol. `--datos`, `--salida`, `--busquedas`, `--semilla` y `--alfa` permiten configurar la corrida. El valor predeterminado de α es 0,5. Se cargan los primeros N pares una vez por tamaño, fuera del tiempo medido, y se construyen B, Bε(4,506) y Bε(126,384) por separado. Así el tiempo de construcción mide las inserciones, sin contar la lectura de `datos.bin` ni el guardado final del árbol.
+## Ejecutar
 
-Se generan `resultados/metricas.csv`, `verificacion.csv`, `rangos.csv` y, para el primer y último tamaño de la corrida, un CSV de la primera búsqueda de B con tiempo Unix y temperatura. Los rangos son los mismos para todos los árboles y valores de N. Cada búsqueda de Bε se compara par por par con B; si hay diferencias, el programa termina con error. Los árboles serializados se borran después de las búsquedas para limitar el espacio usado. El tiempo de búsqueda excluye ordenar los resultados para compararlos y escribir los CSV.
+```bash
+./tests_bin                   # lector de datos.bin, árbol B y prueba básica de cada Bε
+./tests_be                    # pruebas extensas del Bε (unos segundos)
+./experimento                 # batería completa: N = 2^15, ..., 2^26, 50 búsquedas por árbol
+python3 scripts/graficos.py   # gráficos y tabla en figuras/
+```
 
-`./experimento --bonus` corre Bε(126,384) con N=`2^24`, 20 búsquedas por valor y α de 0,1 a 0,8 en pasos de 0,1. Escribe `resultados/bonus.csv`. `--bonus-exponente 15` permite probar el flujo rápidamente; la corrida entregable usa el valor predeterminado 24.
+`tests_bin` compara los primeros 50 pares de `datos.bin` con la muestra, compara el árbol B con `std::multimap` (con llaves repetidas) y con un conteo directo sobre los primeros 32 768 pares reales, y hace una prueba básica de cada Bε. `tests_be` prueba ambas configuraciones con α de 0,1, 0,5 y 0,9 sobre árboles chicos, llaves repetidas, crecientes, decrecientes, todas iguales y los primeros 2^18 pares reales: revisa las invariantes del árbol serializado (orden, capacidades, rango de cada subárbol, hojas a la misma profundidad, Σ k_buffer = N) y compara cada búsqueda con una referencia y con el árbol B.
 
-`python3 scripts/graficos.py` genera cinco gráficos comparativos de métricas en `figuras/`. Si hay curvas de dos tamaños, también grafica la temperatura de la misma búsqueda. Si existe `bonus.csv`, grafica construcción y búsqueda según α.
+`./experimento` carga los primeros N pares una vez por tamaño, fuera del tiempo medido, y construye por separado el árbol B, Bε(4,506) y Bε(126,384) con α = 0,5. Cada árbol se guarda en disco, se buscan los mismos 50 rangos de una semana en los tres y se borra el archivo. Cada búsqueda de Bε se compara par por par con la del árbol B; si alguna difiere, el programa termina con error. `./experimento --desde 15 --hasta 15` sirve para probar rutas y datos con un solo tamaño.
 
-## Servidor de experimentos
+`scripts/graficos.py` genera siete gráficos (tiempo de construcción, I/Os de construcción totales y por inserción, tamaño, tiempo e I/Os de búsqueda, y temperatura de una misma búsqueda con el menor y el mayor N) y `tabla_metricas.csv`/`.tex`.
 
-El servidor usado en la Tarea 1 fue `kestrelserver`: Ubuntu 26.04.1 LTS, x86_64, AMD Ryzen 7 3750H (4 núcleos, 8 hilos), 9,1 GiB de RAM y g++ 15.2.0. `Tarea1/resultados/setup.txt` registra ese ambiente. Antes de la corrida final de Tarea 2 hay que confirmar que sigue siendo el mismo y guardar un setup nuevo, pues la memoria disponible, la versión del sistema y otros detalles pueden cambiar.
+### Correr en el servidor
 
-En el servidor, situarse en `Tarea2/`, copiar `datos.bin` y `datos_sample.txt` por separado (no se suben al repositorio) y ejecutar, en orden:
+En el servidor de los experimentos (Ryzen 7 3750H) la suma de los tiempos de construcción de la batería completa fue de unos 5,5 minutos; con la carga de datos, el guardado y las búsquedas, la corrida completa toma del orden de 10 minutos. Usamos tmux para que no se cortara al cerrar SSH, con el notebook conectado a la corriente:
 
 ```bash
 make clean && make all tests_be
 make test && make test_be
-./experimento --desde 15 --hasta 18 --salida resultados_prueba
 mkdir -p resultados
 { lscpu; free -h; uname -a; lsb_release -a; g++ --version; cat /proc/cmdline; \
   cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor; \
@@ -42,13 +54,9 @@ tmux new -s tarea2
 python3 scripts/graficos.py
 ```
 
-Los dos primeros comandos compilan y corren las pruebas; el tercero es una batería corta que comprueba rutas y datos. El bloque entre llaves guarda el ambiente del equipo, la corrida completa va dentro de `tmux` y al final se generan los gráficos. Para el informe, usar solo mediciones del servidor, sin otras cargas, y registrar cualquier cambio de configuración del equipo. Qué hace cada comando y cada flag está en la sección siguiente.
-
 ## Comandos y flags
 
 ### Compilación
-
-El Makefile compila con `g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc`. Los objetivos son `make` o `make all` (`experimento` y `tests_bin`), `make tests_be`, `make test`, `make test_be` y `make clean`.
 
 | Flag | Qué hace |
 |---|---|
@@ -57,7 +65,7 @@ El Makefile compila con `g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc`. Los
 | `-Wall -Wextra -Wpedantic` | Activan advertencias del compilador; no cambian el programa generado. El código compila sin advertencias. |
 | `-Isrc` | Busca los archivos `.h` en `src/`. |
 
-Para buscar errores de memoria se compilaron también las pruebas con sanitizers. Esos binarios son más lentos y nunca se usan para medir:
+Para buscar errores de memoria, las pruebas se compilaron también con sanitizers. Esos binarios son más lentos y nunca se usan para medir:
 
 ```bash
 g++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Isrc -o tests_be_asan tests/tests_be.cpp
@@ -79,7 +87,7 @@ g++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Isrc
 | `--busquedas q` | 50 | Búsquedas por rango para cada N y cada árbol. |
 | `--semilla s` | 4102 | Semilla de `mt19937` para los rangos. Con la misma semilla, los rangos son idénticos para los tres árboles y todos los N. |
 | `--alfa a` | 0,5 | α del criterio de vaciado de ambos Bε (0 < α < 1). |
-| `--bonus` | — | En vez de la batería, corre el bonus: Bε(126,384) con 8 valores de α (0,1 a 0,8) y 20 búsquedas; escribe `bonus.csv`. |
+| `--bonus` | — | En vez de la batería, corre el bonus: Bε(126,384) con 8 valores de α (0,1 a 0,8) y 20 búsquedas; escribe `bonus.csv`. No forma parte de los resultados entregados. |
 | `--bonus-exponente e` | 24 | Exponente de N para el bonus (15 a 24). |
 | `--ayuda` | — | Muestra el uso y termina. |
 
@@ -87,16 +95,16 @@ Cada rango es [l, l + 604 800] (una semana), con l uniforme en [1 546 300 800, 1
 
 ### Qué mide y qué escribe
 
-Para cada N se cargan los primeros N pares en memoria antes de medir. El tiempo de construcción se mide con `std::chrono::steady_clock` alrededor del ciclo de inserciones, sin contar la lectura de `datos.bin` ni el guardado. El tiempo de búsqueda se mide solo alrededor de `buscarRango`, que lee los nodos desde el archivo.
+El tiempo de construcción se mide con `std::chrono::steady_clock` alrededor del ciclo de inserciones, sin contar la lectura de `datos.bin` ni el guardado. El tiempo de búsqueda se mide solo alrededor de `buscarRango`, que lee los nodos desde el archivo.
 
 | Archivo | Contenido |
 |---|---|
-| `metricas.csv` | Una fila por árbol y N: tiempo de construcción (ms), lecturas, escrituras e I/Os totales de construcción (contadores de `Disco`), nodos y bytes (nodos × 4096), tiempo promedio de búsqueda (ms), I/Os promedio de búsqueda (bloques leídos del archivo) y pares hallados en promedio. |
-| `verificacion.csv` | Para cada búsqueda de cada Bε, cuántos pares halló, cuántos halló el árbol B e `iguales` = 1 si coinciden par por par. Si alguna no coincide, `./experimento` termina con error, así que una corrida que termina bien tiene 1 en todas las filas. |
-| `rangos.csv` | Los rangos [l, u] usados. |
-| `busqueda_b_<e>.csv` | Resultado de la primera búsqueda (tiempo Unix y temperatura) para el primer y el último N; lo usa el gráfico de temperatura. |
-| `log.txt` | Salida de la corrida, con el tiempo de construcción de cada árbol. |
-| `setup_tarea2.txt` | Ambiente del equipo, descrito en la tabla siguiente. |
+| `resultados/metricas.csv` | Una fila por árbol y N: tiempo de construcción (ms), lecturas, escrituras e I/Os totales de construcción (contadores de `Disco`), nodos y bytes (nodos × 4096), tiempo promedio de búsqueda (ms), I/Os promedio de búsqueda (bloques leídos del archivo) y pares hallados en promedio. |
+| `resultados/verificacion.csv` | Para cada búsqueda de cada Bε, cuántos pares halló, cuántos halló el árbol B e `iguales` = 1 si coinciden par por par. |
+| `resultados/rangos.csv` | Los rangos [l, u] usados. |
+| `resultados/busqueda_b_<e>.csv` | Resultado de la primera búsqueda (tiempo Unix y temperatura) para el primer y el último N. |
+| `resultados/log.txt` | Salida de la corrida, con el tiempo de construcción de cada árbol. |
+| `resultados/setup_tarea2.txt` | Ambiente del equipo, según la tabla siguiente. |
 
 ### Otros comandos de la corrida
 
@@ -113,16 +121,16 @@ Para cada N se cargan los primeros N pares en memoria antes de medir. El tiempo 
 | `cat .../AC*/online` | 1 si el equipo estaba enchufado; en un notebook la frecuencia puede bajar con batería. |
 | `git log -1 --oneline` | Commit exacto del código medido. |
 
-## Interfaz compartida
+## Estructura del código
 
-- `Par` (`src/datos.h`): `int32_t llave` y `float valor`, 8 bytes.
-- `Disco<Nodo>` (`src/disco.h`): `leer(i)`, `escribir(i,nodo)`, `agregar(nodo)`, `guardar(ruta)`, `cantidadNodos()`, `tamanoBytes()`, `lecturas`, `escrituras`. Cada acceso por bloque cuenta una operación. `guardar` no se suma a los I/Os de inserción.
-- `ArchivoNodos<Nodo>` (`src/disco.h`): abre el árbol serializado y `leer(i)` busca el bloque `i` en `i*4096`, contando una lectura.
-- La raíz siempre ocupa el bloque 0. Al crecer la raíz, se agregan sus dos mitades al final y se sobrescribe el bloque 0 con la nueva raíz.
-- `ArbolB` (`src/arbol_b.h`) y `ArbolBe<C,L>` (`src/arbol_be.h`): `insertar(Par)`, `guardar(ruta)`, métricas de construcción y `buscarRango(archivo,l,u)`. `ArbolBe` agrega `altura()`, `estadisticas()` (vaciados, splits y lotes parciales) y `contarPares(archivo)`.
+- `src/datos.h`: `Par` (`int32_t llave`, `float valor`, 8 bytes) y el lector de `datos.bin`.
+- `src/disco.h`: `Disco<Nodo>`, el arreglo de nodos en RAM que cuenta lecturas y escrituras y se guarda secuencialmente en un binario, y `ArchivoNodos<Nodo>`, que lee el bloque i en la posición i · 4096 del archivo contando una lectura. Ningún árbol accede al arreglo ni al archivo directamente.
+- `src/arbol_b.h`: `NodoB` y `ArbolB` (split, inserción y búsqueda por rango de las secciones 3.4.1, 3.4.2 y 3.4.5).
+- `src/arbol_be.h`: `NodoBe<C, L>` y `ArbolBe<C, L>` (split de hoja e interno, vaciado, inserción y búsqueda de las secciones 3.4.3, 3.4.4 y 3.4.6), con los alias `ArbolBe025 = ArbolBe<4, 506>` y `ArbolBe075 = ArbolBe<126, 384>`.
+- `src/main.cpp`: la batería de experimentos.
 
-`ArbolBe<C,L>` usa `Disco<NodoBe<C,L>>` y `ArchivoNodos<NodoBe<C,L>>` sin acceso directo al vector o al archivo. `static_assert` exige nodos de 4096 bytes en ambas configuraciones (`ArbolBe025 = ArbolBe<4,506>` y `ArbolBe075 = ArbolBe<126,384>`).
+La raíz siempre ocupa el bloque 0: al crecer, sus dos mitades se agregan al final y el bloque 0 se sobrescribe con la nueva raíz. Las decisiones que el enunciado no especifica (llaves repetidas, grupos que no caben después de un split, nodos internos que llegan a c llaves) se explican en la sección Desarrollo del informe.
 
-## Decisiones de implementación
+## Reproducibilidad
 
-Las llaves repetidas pueden quedar a ambos lados de un split. Ambas búsquedas visitan los dos hijos que tocan una llave divisoria igual al borde del rango. En Bε, cada vaciado baja todos los grupos con al menos α·f pares, de derecha a izquierda, como pide 3.4.3. Si un hijo no puede recibir todo su grupo ni después de dividirse, recibe lo que cabe y el resto vuelve al buffer del padre. Un nodo interno que llega a `C` divisorias durante un vaciado se divide en ese momento. Los detalles y el resto de los casos que el enunciado no especifica están en `docs/DECISIONES_BE.md`, y deben explicarse en el informe.
+Los rangos se generan con `std::mt19937` y la semilla 4102, combinando dos salidas en un entero de 64 bits, sin `std::uniform_int_distribution`; así la misma semilla produce los mismos rangos en cualquier SO. La inserción es determinista: los I/Os, la cantidad de nodos y los pares hallados son idénticos entre corridas y entre equipos; solo los tiempos dependen de la máquina.

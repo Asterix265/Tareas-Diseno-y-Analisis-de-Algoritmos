@@ -1,3 +1,4 @@
+# Uso: make (compila experimento y tests_bin) | make test | make tests_be | make test_be | make clean
 CXX      ?= g++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -Wpedantic
 HDRS     := $(wildcard src/*.h)

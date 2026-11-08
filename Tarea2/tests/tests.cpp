@@ -1,3 +1,4 @@
+/** Comprueba el lector de datos.bin, el árbol B y una prueba básica de cada configuración Bε. */
 #include <algorithm>
 #include <cassert>
 #include <cmath>
